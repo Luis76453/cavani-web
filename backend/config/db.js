@@ -20,7 +20,8 @@ async function initDb() {
         database: process.env.DB_DATABASE,
         password: process.env.DB_PASSWORD,
         port: parseInt(process.env.DB_PORT || '5432'),
-        connectionTimeoutMillis: 5000
+        connectionTimeoutMillis: 5000,
+        ssl: { rejectUnauthorized: false }
       });
       // Test the connection
       await pgPool.query('SELECT NOW()');
