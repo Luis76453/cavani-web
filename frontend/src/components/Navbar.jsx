@@ -37,7 +37,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-primary text-white shadow-md py-4' : 'bg-transparent text-primary py-6'}`}>
+    <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-primary text-white shadow-md py-4' : 'bg-transparent text-white py-6'}`}>
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         
         {/* Mobile menu button */}
