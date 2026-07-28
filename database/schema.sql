@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS orders (
     payment_status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, PAID, FAILED
     payment_method VARCHAR(100),
     promotion_id INTEGER REFERENCES promotions(id) ON DELETE SET NULL,
+    mp_payment_id VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 
@@ -24,6 +24,21 @@ import { Nosotros, FAQ, Envios, Cambios, Terminos, Privacidad } from './pages/St
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
 import AdminOrders from './pages/AdminOrders';
+
+// Scroll to top helper component
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant' // Immediate top scroll on navigation
+    });
+  }, [pathname]);
+
+  return null;
+}
 
 // Shop Layout wrapper (standard sticky header, viewport content spacer, footer)
 function ShopLayout({ children }) {
@@ -65,6 +80,7 @@ export default function App() {
     <AuthProvider>
       <CartProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             
             {/* Public/Customer Shop Routes */}

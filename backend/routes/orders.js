@@ -3,138 +3,29 @@ const router = express.Router();
 const db = require('../config/db');
 const { authenticateToken } = require('../middleware/auth');
 
+const { createOrderFromCart } = require('../services/orderService');
+
 // POST /api/orders - Place a new order
 router.post('/', authenticateToken, async (req, res) => {
   const { address, payment_method, promo_code } = req.body;
   const userId = req.user.id;
 
-  if (!address || !payment_method) {
-    return res.status(400).json({ message: 'La dirección de envío y el método de pago son obligatorios.' });
-  }
-
   try {
-    // 1. Get user cart
-    const cartRes = await db.query('SELECT id FROM carts WHERE user_id = $1', [userId]);
-    if (cartRes.rows.length === 0) {
-      return res.status(400).json({ message: 'El carrito está vacío.' });
-    }
-    const cartId = cartRes.rows[0].id;
-
-    const cartItemsRes = await db.query(
-      `SELECT ci.quantity, pv.id as variant_id, pv.stock, p.price, p.name 
-       FROM cart_items ci
-       JOIN product_variants pv ON ci.variant_id = pv.id
-       JOIN products p ON pv.product_id = p.id
-       WHERE ci.cart_id = $1`,
-      [cartId]
-    );
-
-    if (cartItemsRes.rows.length === 0) {
-      return res.status(400).json({ message: 'El carrito está vacío.' });
-    }
-
-    const items = cartItemsRes.rows;
-
-    // 2. Validate stock for all items
-    for (const item of items) {
-      if (item.stock < item.quantity) {
-        return res.status(400).json({ 
-          message: `Stock insuficiente para el producto "${item.name}". Solo quedan ${item.stock} unidades.` 
-        });
-      }
-    }
-
-    // 3. Save Address
-    let addressId;
-    if (address.id) {
-      addressId = address.id;
-    } else {
-      // Validate address details
-      const { address_line1, city, state, postal_code, country, phone } = address;
-      if (!address_line1 || !city || !state || !postal_code || !country) {
-        return res.status(400).json({ message: 'Complete todos los campos obligatorios de la dirección.' });
-      }
-
-      const addrResult = await db.query(
-        `INSERT INTO addresses (user_id, address_line1, address_line2, city, state, postal_code, country, phone)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-        [userId, address_line1, address.address_line2 || '', city, state, postal_code, country, phone || '']
-      );
-      addressId = addrResult.rows[0].id;
-    }
-
-    // 4. Calculate pricing
-    let subtotal = 0;
-    for (const item of items) {
-      subtotal += parseFloat(item.price) * item.quantity;
-    }
-
-    // Apply promo code discount if valid
-    let discount = 0;
-    let promotionId = null;
-    if (promo_code) {
-      const promoRes = await db.query(
-        `SELECT id, discount_type, discount_value 
-         FROM promotions 
-         WHERE code = $1 AND active = true AND (start_date IS NULL OR start_date <= NOW()) AND (end_date IS NULL OR end_date >= NOW())`,
-        [promo_code.toUpperCase().trim()]
-      );
-
-      if (promoRes.rows.length > 0) {
-        const promo = promoRes.rows[0];
-        promotionId = promo.id;
-        if (promo.discount_type === 'percentage') {
-          discount = subtotal * (parseFloat(promo.discount_value) / 100);
-        } else if (promo.discount_type === 'fixed') {
-          discount = parseFloat(promo.discount_value);
-        }
-      }
-    }
-
-    const shippingCost = subtotal > 150 ? 0 : 9.99;
-    const total = Math.max(0, subtotal - discount + shippingCost);
-
-    // 5. Create Order
-    const orderNumber = `CV-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-    const orderRes = await db.query(
-      `INSERT INTO orders (user_id, order_number, status, subtotal, shipping_cost, total, address_id, payment_status, payment_method, promotion_id)
-       VALUES ($1, $2, 'PENDING', $3, $4, $5, $6, 'PENDING', $7, $8) RETURNING *`,
-      [userId, orderNumber, subtotal, shippingCost, total, addressId, payment_method, promotionId]
-    );
-    const order = orderRes.rows[0];
-
-    // 6. Create Order Items & Decrement Stock
-    for (const item of items) {
-      // Create order item
-      await db.query(
-        `INSERT INTO order_items (order_id, variant_id, quantity, price)
-         VALUES ($1, $2, $3, $4)`,
-        [order.id, item.variant_id, item.quantity, item.price]
-      );
-
-      // Decrement variant stock
-      await db.query(
-        `UPDATE product_variants SET stock = stock - $1 WHERE id = $2`,
-        [item.quantity, item.variant_id]
-      );
-    }
-
-    // 7. Clear User Cart
-    await db.query(`DELETE FROM cart_items WHERE cart_id = $1`, [cartId]);
+    const order = await createOrderFromCart({
+      userId,
+      address,
+      payment_method,
+      promo_code,
+      payment_status: 'PENDING'
+    });
 
     res.status(201).json({
       message: 'Pedido realizado con éxito.',
-      order: {
-        id: order.id,
-        order_number: order.order_number,
-        total: order.total,
-        status: order.status
-      }
+      order
     });
-
   } catch (err) {
     console.error('Create order error:', err);
-    res.status(500).json({ message: 'Error al procesar el pedido.' });
+    res.status(400).json({ message: err.message || 'Error al procesar el pedido.' });
   }
 });
 

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import api from '../utils/api';
 import { useAuth } from './AuthContext';
 
@@ -9,21 +9,30 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState(null);
+  const [cartWarnings, setCartWarnings] = useState([]);
 
-  // Initialize or fetch guest session_id on mount
+  // Initialize prevUserRef with the initial mount state of user ID (preventing refresh-trigger false merges)
+  const prevUserRef = useRef(user?.id || null);
+
+  // Initialize guest session_id only if there is no session and no active logged-in user
   useEffect(() => {
-    let sId = localStorage.getItem('cavani_session_id');
-    if (!sId) {
-      sId = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      localStorage.setItem('cavani_session_id', sId);
+    if (!user) {
+      let sId = localStorage.getItem('cavani_session_id');
+      if (!sId) {
+        sId = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('cavani_session_id', sId);
+      }
+      setSessionId(sId);
+    } else {
+      setSessionId(null);
     }
-    setSessionId(sId);
-  }, []);
+  }, [user]);
 
-  // Fetch cart whenever session_id or user shifts
+  // Fetch cart details from database
   const fetchCart = async () => {
     const sId = localStorage.getItem('cavani_session_id');
-    if (!sId && !user) return;
+    // If not logged in and guest session isn't initialized, we can't load the cart
+    if (!user && !sId) return;
     
     setLoading(true);
     try {
@@ -38,11 +47,43 @@ export const CartProvider = ({ children }) => {
     }
   };
 
+  // Sync / Merge cart upon auth state transitions
+  const userId = user?.id;
   useEffect(() => {
-    if (sessionId !== null) {
-      fetchCart();
-    }
-  }, [user, sessionId]);
+    const handleCartAuthSync = async () => {
+      const sId = localStorage.getItem('cavani_session_id');
+      
+      // Merge only if moving from guest (prevUserRef was null) to logged-in user (userId is active)
+      const wasGuest = prevUserRef.current === null;
+      const isLoggedInNow = userId !== undefined && userId !== null;
+
+      if (wasGuest && isLoggedInNow && sId) {
+        try {
+          setLoading(true);
+          const res = await api.post('/cart/merge', { session_id: sId });
+          
+          if (res.data.warnings && res.data.warnings.length > 0) {
+            setCartWarnings(res.data.warnings);
+          } else {
+            setCartWarnings([]);
+          }
+
+          // Clear guest session id completely from client storage
+          localStorage.removeItem('cavani_session_id');
+          setSessionId(null);
+        } catch (err) {
+          console.error('Cart merge error on login:', err);
+        }
+      }
+
+      await fetchCart();
+      
+      // Update ref to track auth transition state
+      prevUserRef.current = userId || null;
+    };
+
+    handleCartAuthSync();
+  }, [userId]); // Only runs when user ID shifts (login/logout/switch)
 
   const addToCart = async (variantId, quantity = 1) => {
     const sId = localStorage.getItem('cavani_session_id');
@@ -105,7 +146,9 @@ export const CartProvider = ({ children }) => {
       removeFromCart,
       fetchCart,
       getSubtotal,
-      getCartCount
+      getCartCount,
+      cartWarnings,
+      setCartWarnings
     }}>
       {children}
     </CartContext.Provider>

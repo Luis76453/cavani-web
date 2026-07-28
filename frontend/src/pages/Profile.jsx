@@ -12,6 +12,14 @@ export default function Profile() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activeTab, setActiveTab] = useState('orders'); // 'profile', 'orders'
 
+  // Scroll to top when tab or selected order details change
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, [activeTab, selectedOrder]);
+
   // Redirect if guest
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

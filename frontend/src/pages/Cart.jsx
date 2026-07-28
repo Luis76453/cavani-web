@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 
 export default function Cart() {
-  const { cartItems, loading, updateQuantity, removeFromCart, getSubtotal } = useCart();
+  const { cartItems, loading, updateQuantity, removeFromCart, getSubtotal, cartWarnings, setCartWarnings } = useCart();
   const navigate = useNavigate();
 
   const subtotal = getSubtotal();
@@ -24,6 +24,22 @@ export default function Cart() {
       <h1 className="font-serif text-3xl font-light text-primary mb-12 border-b border-neutral-light pb-6">
         Bolsa de Compra
       </h1>
+
+      {cartWarnings && cartWarnings.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl text-xs space-y-1 mb-8 relative pr-8">
+          <button 
+            onClick={() => setCartWarnings([])}
+            className="absolute top-3 right-4 text-yellow-800 hover:text-black font-semibold text-sm focus:outline-none"
+            aria-label="Cerrar aviso"
+          >
+            &times;
+          </button>
+          <p className="font-semibold">Nota sobre tu carrito:</p>
+          <ul className="list-disc pl-5 mt-1 space-y-1">
+            {cartWarnings.map((w, idx) => <li key={idx}>{w}</li>)}
+          </ul>
+        </div>
+      )}
 
       {cartItems.length === 0 ? (
         <div className="text-center py-24 max-w-md mx-auto">

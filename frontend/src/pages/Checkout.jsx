@@ -1,8 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api from '../utils/api';
+import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+
+// Initialize Mercado Pago with locale set for Peru (Peru supports Visa, Mastercard, and Yape natively)
+const mpPublicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
+if (mpPublicKey) {
+  initMercadoPago(mpPublicKey, { locale: 'es-PE' });
+}
+
+// Module-level static customization configuration to avoid reference changes during render
+const MP_CUSTOMIZATION = {
+  paymentMethods: {
+    ticket: undefined, // Disable cash coupons
+    bankTransfer: undefined, // Handled separately
+    creditCard: 'all',
+    debitCard: 'all',
+    mercadoPago: 'all', // Includes digital wallets like Yape
+  },
+};
 
 export default function Checkout() {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -34,19 +52,35 @@ export default function Checkout() {
     phone: ''
   });
 
+  // Keep reference to address and promo state to avoid recreating the submit callback on every keystroke
+  const addressRef = useRef(address);
+  const appliedPromoRef = useRef(appliedPromo);
+
+  useEffect(() => {
+    addressRef.current = address;
+  }, [address]);
+
+  useEffect(() => {
+    appliedPromoRef.current = appliedPromo;
+  }, [appliedPromo]);
+
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState('credit_card');
-  const [cardDetails, setCardDetails] = useState({
-    number: '',
-    name: '',
-    expiry: '',
-    cvc: ''
-  });
 
   // Order state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [orderConfirmed, setOrderConfirmed] = useState(null);
+
+  // Scroll to top when order is placed successfully
+  useEffect(() => {
+    if (orderConfirmed) {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  }, [orderConfirmed]);
 
   const applyPromo = async (e) => {
     e.preventDefault();
@@ -54,7 +88,6 @@ export default function Checkout() {
     if (!promoCode.trim()) return;
 
     try {
-      // Seed code check locally to speed up or call API (mock promo calculation is checked in backend but we mirror it here)
       if (promoCode.toUpperCase().trim() === 'WELCOME10') {
         const val = subtotal * 0.10;
         setDiscount(val);
@@ -74,28 +107,22 @@ export default function Checkout() {
     setAddress(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCardChange = (e) => {
-    const { name, value } = e.target;
-    setCardDetails(prev => ({ ...prev, [name]: value }));
-  };
-
+  // Submit Order for Bank Transfer (standard POST /orders)
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
     setErrorMessage('');
+
+    // If credit card, the submit action is managed by the Mercado Pago onSubmit Brick handler,
+    // so we return immediately and avoid duplicate submission.
+    if (paymentMethod === 'credit_card') {
+      return;
+    }
 
     // Validate inputs
     const { address_line1, city, state, postal_code, phone } = address;
     if (!address_line1 || !city || !state || !postal_code || !phone) {
       setErrorMessage('Por favor complete todos los campos de dirección requeridos.');
       return;
-    }
-
-    if (paymentMethod === 'credit_card') {
-      const { number, name, expiry, cvc } = cardDetails;
-      if (!number || !name || !expiry || !cvc) {
-        setErrorMessage('Por favor complete los datos de su tarjeta de crédito.');
-        return;
-      }
     }
 
     setIsSubmitting(true);
@@ -115,7 +142,68 @@ export default function Checkout() {
     }
   };
 
+  // Submit handler for Mercado Pago payment processing route
+  // useCallback dependencies do not require 'address' or 'appliedPromo' as we access them via refs
+  const handleMercadoPagoSubmit = useCallback(({ formData }) => {
+    return new Promise(async (resolve, reject) => {
+      setErrorMessage('');
+
+      // Validate address inputs first before triggering payment
+      const currentAddress = addressRef.current;
+      const currentPromo = appliedPromoRef.current;
+      const { address_line1, city, state, postal_code, phone } = currentAddress;
+      
+      if (!address_line1 || !city || !state || !postal_code || !phone) {
+        setErrorMessage('Por favor complete todos los campos de dirección requeridos antes de efectuar el pago.');
+        reject();
+        return;
+      }
+
+      // Generate a unique idempotency key to prevent double charging on retry
+      const idempotencyKey = `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+      try {
+        const res = await api.post('/payments/process', {
+          formData,
+          address: currentAddress,
+          promo_code: currentPromo,
+          idempotency_key: idempotencyKey
+        });
+
+        const { status, order } = res.data;
+
+        if (status === 'approved') {
+          setOrderConfirmed(order);
+          await fetchCart(); // Clear user cart items
+          resolve();
+        } else {
+          setErrorMessage(res.data.message || 'El pago no fue aprobado.');
+          reject();
+        }
+      } catch (err) {
+        console.error('Mercado Pago submit failed:', err);
+        const userMsg = err.response?.data?.message || 'Ocurrió un error al procesar el pago. Por favor, intente con otra tarjeta.';
+        setErrorMessage(userMsg);
+        reject();
+      }
+    });
+  }, [fetchCart]);
+
+  const handlePaymentReady = useCallback(() => {
+    console.log('Mercado Pago Checkout Brick is ready');
+  }, []);
+
+  const handlePaymentError = useCallback((err) => {
+    console.error('Mercado Pago Brick error:', err);
+    setErrorMessage('Ocurrió un error al cargar la pasarela de pagos. Por favor reintente.');
+  }, []);
+
   const total = Math.max(0, subtotal - discount + shipping);
+
+  // Memoize initialization prop to only trigger update if the actual payment total shifts
+  const mpInitialization = useMemo(() => ({
+    amount: total,
+  }), [total]);
 
   if (authLoading) {
     return <div className="py-40 text-center text-xs">Cargando pasarela de pago...</div>;
@@ -256,67 +344,34 @@ export default function Checkout() {
               <button
                 type="button"
                 onClick={() => setPaymentMethod('credit_card')}
-                className={`flex-1 p-4 border rounded-md text-xs font-semibold uppercase tracking-wider text-center transition-all ${paymentMethod === 'credit_card' ? 'border-primary bg-primary text-white' : 'border-neutral-dark/20 text-primary'}`}
+                className={`flex-1 p-4 border rounded-md text-xs font-semibold uppercase tracking-wider text-center transition-all ${paymentMethod === 'credit_card' ? 'border-primary bg-primary text-white font-semibold' : 'border-neutral-dark/20 text-primary'}`}
               >
-                Tarjeta de Crédito
+                Tarjeta / Pago Digital
               </button>
               <button
                 type="button"
                 onClick={() => setPaymentMethod('bank_transfer')}
-                className={`flex-1 p-4 border rounded-md text-xs font-semibold uppercase tracking-wider text-center transition-all ${paymentMethod === 'bank_transfer' ? 'border-primary bg-primary text-white' : 'border-neutral-dark/20 text-primary'}`}
+                className={`flex-1 p-4 border rounded-md text-xs font-semibold uppercase tracking-wider text-center transition-all ${paymentMethod === 'bank_transfer' ? 'border-primary bg-primary text-white font-semibold' : 'border-neutral-dark/20 text-primary'}`}
               >
                 Transferencia Bancaria
               </button>
             </div>
 
             {paymentMethod === 'credit_card' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white border border-neutral-light/50 p-6 rounded-lg">
-                <div className="sm:col-span-3">
-                  <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-2">Número de Tarjeta</label>
-                  <input
-                    type="text"
-                    name="number"
-                    value={cardDetails.number}
-                    onChange={handleCardChange}
-                    placeholder="xxxx xxxx xxxx xxxx"
-                    className="w-full text-xs border border-neutral-dark/20 rounded px-4 py-3 focus:outline-none focus:border-primary"
+              <div className="bg-white border border-neutral-light/50 p-6 rounded-lg shadow-sm">
+                {import.meta.env.VITE_MP_PUBLIC_KEY ? (
+                  <Payment
+                    initialization={mpInitialization}
+                    customization={MP_CUSTOMIZATION}
+                    onSubmit={handleMercadoPagoSubmit}
+                    onReady={handlePaymentReady}
+                    onError={handlePaymentError}
                   />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-2">Nombre en Tarjeta</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={cardDetails.name}
-                    onChange={handleCardChange}
-                    placeholder="TITULAR DE LA TARJETA"
-                    className="w-full text-xs border border-neutral-dark/20 rounded px-4 py-3 focus:outline-none focus:border-primary"
-                  />
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex-grow">
-                    <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-2">Vencimiento</label>
-                    <input
-                      type="text"
-                      name="expiry"
-                      value={cardDetails.expiry}
-                      onChange={handleCardChange}
-                      placeholder="MM/AA"
-                      className="w-full text-xs border border-neutral-dark/20 rounded px-4 py-3 focus:outline-none focus:border-primary text-center"
-                    />
+                ) : (
+                  <div className="p-4 text-xs text-red-500 font-semibold bg-red-50 rounded-md border border-red-200">
+                    Mercado Pago Public Key (VITE_MP_PUBLIC_KEY) no configurada en el cliente.
                   </div>
-                  <div>
-                    <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-2">CVC</label>
-                    <input
-                      type="password"
-                      name="cvc"
-                      value={cardDetails.cvc}
-                      onChange={handleCardChange}
-                      placeholder="xxx"
-                      className="w-full text-xs border border-neutral-dark/20 rounded px-4 py-3 focus:outline-none focus:border-primary text-center"
-                    />
-                  </div>
-                </div>
+                )}
               </div>
             ) : (
               <div className="bg-neutral-light border border-neutral-light/50 p-6 rounded-lg text-xs leading-relaxed text-primary/80 font-light">
@@ -401,13 +456,16 @@ export default function Checkout() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors focus:outline-none disabled:opacity-50"
-            >
-              {isSubmitting ? 'Procesando Pedido...' : `Confirmar y Pagar $${total.toFixed(2)}`}
-            </button>
+            {/* Submit button shown only for bank transfer (Mercado Pago Bricks has its own button) */}
+            {paymentMethod === 'bank_transfer' && (
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors focus:outline-none disabled:opacity-50"
+              >
+                {isSubmitting ? 'Procesando Pedido...' : `Confirmar y Pagar $${total.toFixed(2)}`}
+              </button>
+            )}
 
           </div>
 

@@ -185,6 +185,117 @@ router.put('/items/:id', async (req, res) => {
   }
 });
 
+const { authenticateToken } = require('../middleware/auth');
+
+// POST /api/cart/merge - Merge guest cart with authenticated user's cart
+router.post('/merge', authenticateToken, async (req, res) => {
+  const { session_id } = req.body;
+  const userId = req.user.id;
+
+  if (!session_id) {
+    return res.status(400).json({ message: 'Se requiere el session_id para realizar la fusión del carrito.' });
+  }
+
+  try {
+    // 1. Get guest cart ID
+    const guestCartRes = await db.query('SELECT id FROM carts WHERE session_id = $1', [session_id]);
+    if (guestCartRes.rows.length === 0) {
+      return res.json({ message: 'No se encontró carrito de invitado, fusión omitida.' });
+    }
+    const guestCartId = guestCartRes.rows[0].id;
+
+    // 2. Get guest cart items
+    const guestItemsRes = await db.query('SELECT * FROM cart_items WHERE cart_id = $1', [guestCartId]);
+    const guestItems = guestItemsRes.rows;
+    if (guestItems.length === 0) {
+      // Delete empty guest cart to keep DB clean
+      await db.query('DELETE FROM carts WHERE id = $1', [guestCartId]);
+      return res.json({ message: 'El carrito de invitado estaba vacío, fusión omitida.' });
+    }
+
+    // 3. Get or create user cart ID
+    let userCartId;
+    const userCartRes = await db.query('SELECT id FROM carts WHERE user_id = $1', [userId]);
+    if (userCartRes.rows.length > 0) {
+      userCartId = userCartRes.rows[0].id;
+    } else {
+      const newUserCart = await db.query('INSERT INTO carts (user_id) VALUES ($1) RETURNING id', [userId]);
+      userCartId = newUserCart.rows[0].id;
+    }
+
+    const warnings = [];
+
+    // 4. Merge each item
+    for (const item of guestItems) {
+      // Validate variant exists and check stock limits
+      const variantRes = await db.query(
+        `SELECT pv.stock, p.name 
+         FROM product_variants pv 
+         JOIN products p ON pv.product_id = p.id 
+         WHERE pv.id = $1`,
+        [item.variant_id]
+      );
+      if (variantRes.rows.length === 0) continue;
+      const { stock, name } = variantRes.rows[0];
+
+      // Check if product already in user cart
+      const userItemRes = await db.query(
+        'SELECT id, quantity FROM cart_items WHERE cart_id = $1 AND variant_id = $2',
+        [userCartId, item.variant_id]
+      );
+
+      if (userItemRes.rows.length > 0) {
+        // Update existing item
+        const existingQty = userItemRes.rows[0].quantity;
+        const targetQty = existingQty + item.quantity;
+        let finalQty = targetQty;
+
+        if (targetQty > stock) {
+          finalQty = stock;
+          const cappedUnits = stock - existingQty;
+          if (cappedUnits > 0) {
+            warnings.push(`Solo se pudieron sumar ${cappedUnits} unidades de "${name}" debido al límite de stock disponible.`);
+          } else {
+            warnings.push(`No se agregaron más unidades de "${name}" porque ya tienes el stock máximo disponible en tu carrito.`);
+          }
+        }
+
+        await db.query(
+          'UPDATE cart_items SET quantity = $1 WHERE id = $2',
+          [finalQty, userItemRes.rows[0].id]
+        );
+      } else {
+        // Insert new item
+        let finalQty = item.quantity;
+        if (item.quantity > stock) {
+          finalQty = stock;
+          warnings.push(`Solo se agregaron ${stock} unidades de "${name}" debido al límite de stock disponible.`);
+        }
+        
+        if (finalQty > 0) {
+          await db.query(
+            'INSERT INTO cart_items (cart_id, variant_id, quantity) VALUES ($1, $2, $3)',
+            [userCartId, item.variant_id, finalQty]
+          );
+        }
+      }
+    }
+
+    // 5. Clean up guest cart data
+    await db.query('DELETE FROM cart_items WHERE cart_id = $1', [guestCartId]);
+    await db.query('DELETE FROM carts WHERE id = $1', [guestCartId]);
+
+    res.json({
+      message: 'Fusión de carritos completada.',
+      warnings: warnings.length > 0 ? warnings : null
+    });
+
+  } catch (err) {
+    console.error('Cart merge error:', err);
+    res.status(500).json({ message: 'Error interno al fusionar carritos.' });
+  }
+  
+});
 // DELETE /api/cart/items/:id - Remove item from cart
 router.delete('/items/:id', async (req, res) => {
   const { id } = req.params;

@@ -32,7 +32,7 @@ export default function Home() {
     { 
       name: 'Filipinas (Tops)', 
       slug: 'tops', 
-      tag: 'Diseño Ergonomico',
+      tag: 'Diseño Ergonómico',
       img: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80' 
     },
     { 
@@ -64,9 +64,11 @@ export default function Home() {
       {/* ========================================================= */}
       {/* 1. HERO SECTION WITH DEEP RICH BACKGROUND & OVERLAPPING CARDS */}
       {/* ========================================================= */}
-      <section className="relative bg-primary text-white pt-32 pb-24 px-6 overflow-hidden">
+      <section className="relative bg-primary text-white pt-36 pb-32 px-6 overflow-visible">
         {/* Subtle background ambient glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-steel/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-steel/20 rounded-full blur-3xl"></div>
+        </div>
 
         <div className="max-w-5xl mx-auto text-center relative z-10 flex flex-col items-center">
           
@@ -75,7 +77,7 @@ export default function Home() {
             initial={{ opacity: 0, y: -15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-1.5 rounded-full text-xs font-medium text-neutral-dark mb-8"
+            className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-1.5 rounded-full text-[10px] font-semibold text-neutral-dark mb-8 uppercase tracking-wider"
           >
             <span className="w-2 h-2 rounded-full bg-steel-light animate-pulse"></span>
             <span>Únete a más de <strong>+15,000 profesionales</strong> de la salud</span>
@@ -86,10 +88,10 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="font-serif text-4xl sm:text-6xl lg:text-7xl font-bold leading-tight tracking-tight max-w-4xl mb-6"
+            className="font-serif text-4xl sm:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight max-w-4xl mb-6"
           >
             Ropa médica, <br className="hidden sm:block"/>
-            <span className="text-steel-light font-serif italic">redefinida</span> para tu día a día.
+            <span className="text-steel-light font-serif italic font-light">redefinida</span> para tu día a día.
           </motion.h1>
 
           {/* Subtitle text */}
@@ -107,7 +109,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-16"
+            className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-20"
           >
             <Link 
               to="/catalog"
@@ -126,7 +128,7 @@ export default function Home() {
         </div>
 
         {/* 2. OVERLAPPING CATEGORY CARDS (Popping out of bottom of dark hero) */}
-        <div className="max-w-6xl mx-auto relative z-20 -mb-32 mt-4">
+        <div className="max-w-6xl mx-auto relative z-20 -mb-48 mt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-4 sm:px-0">
             {categories.map((cat, idx) => (
               <motion.div
@@ -137,15 +139,15 @@ export default function Home() {
               >
                 <Link
                   to={`/catalog?category=${cat.slug}`}
-                  className="group block bg-white rounded-3xl p-4 shadow-xl border border-neutral-light/60 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
+                  className="group block bg-white rounded-[32px] p-4 shadow-xl border border-neutral-light/60 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
                 >
-                  <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-neutral-light mb-4">
+                  <div className="relative aspect-[4/3] rounded-[24px] overflow-hidden bg-neutral-light mb-4">
                     <img 
                       src={cat.img} 
                       alt={cat.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                     />
-                    <span className="absolute top-3 left-3 bg-primary/90 text-white text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
+                    <span className="absolute top-3 left-3 bg-primary/95 text-white text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
                       {cat.tag}
                     </span>
                   </div>
@@ -153,7 +155,7 @@ export default function Home() {
                     <h3 className="font-serif text-sm font-bold text-primary group-hover:text-steel transition-colors">
                       {cat.name}
                     </h3>
-                    <span className="w-7 h-7 rounded-full bg-neutral-light group-hover:bg-primary group-hover:text-white flex items-center justify-center text-xs font-bold transition-colors">
+                    <span className="w-7 h-7 rounded-full bg-neutral-light group-hover:bg-primary group-hover:text-white flex items-center justify-center text-xs font-bold transition-colors text-primary">
                       →
                     </span>
                   </div>
@@ -168,7 +170,7 @@ export default function Home() {
       {/* ========================================================= */}
       {/* 3. HORIZONTAL TICKER BAR (Icon & Benefits Scroll) */}
       {/* ========================================================= */}
-      <section className="pt-40 pb-12 border-b border-neutral-dark/20 bg-neutral-light overflow-hidden">
+      <section className="pt-56 pb-12 border-b border-neutral-dark/20 bg-neutral-light overflow-hidden">
         <div className="flex space-x-12 animate-marquee whitespace-nowrap text-xs font-semibold uppercase tracking-widest text-primary/70">
           {[...benefitsTicker, ...benefitsTicker].map((item, idx) => (
             <div key={idx} className="flex items-center space-x-3 shrink-0">
@@ -181,7 +183,7 @@ export default function Home() {
       </section>
 
       {/* ========================================================= */}
-      {/* 4. EDITORIAL FEATURE SHOWCASE (Grid Collage + Checklist) */}
+      {/* 4. EDITORIAL FEATURE SHOWCASE (Collage + Checklist) */}
       {/* ========================================================= */}
       <section className="max-w-7xl mx-auto px-6 py-28 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         
@@ -241,8 +243,8 @@ export default function Home() {
             Eliminamos las telas rígidas y acartonadas de la ropa clínica convencional. caVani combina fibras ultraligeras de poliéster y spandex enriquecidas con protección antibacteriana Silvadur™ para que mantengas la frescura y la movilidad durante 24 horas continuas.
           </p>
 
-          {/* Checklist with Round Checks */}
-          <div className="space-y-3 pt-2">
+          {/* Checklist with Round Checks (Mirroring MEDVi style) */}
+          <div className="space-y-4 pt-2">
             {[
               'Tratamiento Silvadur™ de iones de plata antimicrobianos',
               'Tejido 4-way stretch de recuperación elástica instantánea',
@@ -250,7 +252,7 @@ export default function Home() {
               'Repelencia comprobada a fluidos médicos y manchas'
             ].map((item, idx) => (
               <div key={idx} className="flex items-center space-x-3 text-xs text-primary font-medium">
-                <span className="w-5 h-5 rounded-full bg-steel/15 text-steel flex items-center justify-center text-xs font-bold">
+                <span className="w-5 h-5 rounded-full bg-steel/15 text-steel flex items-center justify-center text-[10px] font-bold">
                   ✓
                 </span>
                 <span>{item}</span>
@@ -274,26 +276,26 @@ export default function Home() {
       {/* 5. BENTO BOX CARDS (Pastel Background Feature Highlight) */}
       {/* ========================================================= */}
       <section className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* Card 1 */}
+          {/* Bento Card 1 - Left content, right image */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="bg-white border border-neutral-dark/20 rounded-3xl p-8 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow"
+            className="bg-white border border-neutral-dark/15 rounded-[32px] p-8 flex flex-col sm:flex-row items-center justify-between shadow-sm hover:shadow-md transition-shadow gap-6"
           >
-            <div className="space-y-3 mb-6">
-              <span className="text-[9px] uppercase font-bold tracking-widest text-steel">Ergonomía Médica</span>
-              <h3 className="font-serif text-2xl font-bold text-primary">
-                Todo lo que necesitas, <span className="text-steel">al alcance de tus manos.</span>
+            <div className="space-y-4 sm:w-1/2">
+              <span className="text-[9px] uppercase font-bold tracking-widest text-steel block">Ergonomía Médica</span>
+              <h3 className="font-serif text-xl sm:text-2xl font-bold text-primary leading-snug">
+                Todo lo que necesitas, <span className="text-steel font-serif italic">al alcance de tu mano.</span>
               </h3>
               <p className="text-xs text-primary/70 font-light leading-relaxed">
-                Cada filipina y jogger incorpora bolsillos estratégicamente ubicados para transportar estetoscopios, bolígrafos, celulares y libretas sin deformar la silueta de tu prenda.
+                Cada filipina y jogger incorpora bolsillos estratégicamente ubicados para transportar estetoscopios, celulares y libretas sin deformar tu silueta.
               </p>
             </div>
-            <div className="aspect-[16/9] rounded-2xl bg-neutral-light overflow-hidden">
+            <div className="w-full sm:w-1/2 aspect-[4/3] rounded-2xl bg-neutral-light overflow-hidden shadow-inner flex-shrink-0">
               <img 
                 src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=800&q=80" 
                 alt="Detail pockets"
@@ -302,24 +304,24 @@ export default function Home() {
             </div>
           </motion.div>
 
-          {/* Card 2 */}
+          {/* Bento Card 2 - Left content, right image */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="bg-white border border-neutral-dark/20 rounded-3xl p-8 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow"
+            className="bg-white border border-neutral-dark/15 rounded-[32px] p-8 flex flex-col sm:flex-row items-center justify-between shadow-sm hover:shadow-md transition-shadow gap-6"
           >
-            <div className="space-y-3 mb-6">
-              <span className="text-[9px] uppercase font-bold tracking-widest text-steel">Atención Personalizada</span>
-              <h3 className="font-serif text-2xl font-bold text-primary">
-                Garantía de ajuste <span className="text-steel">y cambio sin costo.</span>
+            <div className="space-y-4 sm:w-1/2">
+              <span className="text-[9px] uppercase font-bold tracking-widest text-steel block">Atención Personalizada</span>
+              <h3 className="font-serif text-xl sm:text-2xl font-bold text-primary leading-snug">
+                Garantía de ajuste <span className="text-steel font-serif italic">y cambio sin costo.</span>
               </h3>
               <p className="text-xs text-primary/70 font-light leading-relaxed">
                 Probamos nuestras prendas con médicos reales. Si tu scrub no se ajusta exactamente como deseas, cambiamos tu talla con envío sin costo de forma inmediata.
               </p>
             </div>
-            <div className="aspect-[16/9] rounded-2xl bg-neutral-light overflow-hidden">
+            <div className="w-full sm:w-1/2 aspect-[4/3] rounded-2xl bg-neutral-light overflow-hidden shadow-inner flex-shrink-0">
               <img 
                 src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=800&q=80" 
                 alt="Doctor in scrub"
