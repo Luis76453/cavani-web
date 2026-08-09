@@ -18,6 +18,7 @@ export default function ProductDetail() {
   const [selectedSize, setSelectedSize] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState('');
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   
   // UI notifications
   const [message, setMessage] = useState({ text: '', isError: false });
@@ -106,7 +107,8 @@ export default function ProductDetail() {
 
   // Extract unique colors and sizes for display selectors
   const displayColors = Array.from(new Map(product.variants.map(v => [v.color_id, { id: v.color_id, name: v.color_name, hex: v.color_hex }])).values());
-  const displaySizes = Array.from(new Map(product.variants.filter(v => v.color_id === selectedColor).map(v => [v.size_id, { id: v.size_id, name: v.size_name }])).values());
+  const displaySizes = Array.from(new Map(product.variants.filter(v => v.color_id === selectedColor).map(v => [v.size_id, { id: v.size_id, name: v.size_name }])).values())
+    .filter(size => ['S', 'M', 'L'].includes(size.name));
 
   const handleAddToCart = async (buyNow = false) => {
     if (!activeVariant) {
@@ -208,7 +210,15 @@ export default function ProductDetail() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs uppercase tracking-wider font-semibold text-primary">Talla:</h3>
-              <button className="text-[10px] uppercase tracking-wider text-steel hover:underline font-bold" onClick={() => alert('Guía de tallas:\nXS: Pecho 80-85cm / Cadera 85-90cm\nS: Pecho 85-90cm / Cadera 90-95cm\nM: Pecho 90-95cm / Cadera 95-100cm\nL: Pecho 95-100cm / Cadera 100-105cm\nXL: Pecho 100-105cm / Cadera 105-110cm')}>Guía de Tallas</button>
+              {product.size_guide && product.size_guide.length > 0 && (
+                <button 
+                  type="button" 
+                  className="text-[10px] uppercase tracking-wider text-steel hover:underline font-bold" 
+                  onClick={() => setIsSizeGuideOpen(true)}
+                >
+                  Guía de Tallas
+                </button>
+              )}
             </div>
             <div className="flex gap-3 flex-wrap">
               {displaySizes.map((size) => (
@@ -305,6 +315,54 @@ export default function ProductDetail() {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Guía de tallas Modal Overlay */}
+      {isSizeGuideOpen && (
+        <div className="fixed inset-0 bg-primary/45 backdrop-blur-sm z-50 flex items-center justify-center p-6 transition-all duration-300">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative border border-neutral-light">
+            <button 
+              type="button"
+              onClick={() => setIsSizeGuideOpen(false)}
+              className="absolute top-4 right-4 text-primary hover:text-steel p-2 focus:outline-none text-xl"
+              aria-label="Cerrar guía de tallas"
+            >
+              &times;
+            </button>
+            
+            <div className="text-center mb-6">
+              <span className="text-[9px] tracking-widest uppercase font-semibold text-steel block mb-1">Guía de Ajuste</span>
+              <h3 className="font-serif text-xl font-bold text-primary">Tabla de Medidas</h3>
+              <p className="text-[10px] text-primary/50 mt-1">Medidas en centímetros (cm) correspondientes a esta prenda.</p>
+            </div>
+
+            <div className="overflow-hidden border border-neutral-light rounded-xl shadow-inner bg-white">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-neutral-light font-bold text-[9px] uppercase text-primary/60 border-b border-neutral-light/50">
+                    <th className="p-3">Talla</th>
+                    <th className="p-3">Pecho</th>
+                    <th className="p-3">Cintura</th>
+                    <th className="p-3">Cadera</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-light">
+                  {['S', 'M', 'L'].map(sizeName => {
+                    const guide = product.size_guide?.find(sg => sg.size_name === sizeName);
+                    return (
+                      <tr key={sizeName} className="hover:bg-neutral-light/20 transition-colors">
+                        <td className="p-3 font-semibold text-primary">{sizeName}</td>
+                        <td className="p-3 text-primary/80">{guide?.chest_cm ? `${parseFloat(guide.chest_cm).toFixed(0)} cm` : '-'}</td>
+                        <td className="p-3 text-primary/80">{guide?.waist_cm ? `${parseFloat(guide.waist_cm).toFixed(0)} cm` : '-'}</td>
+                        <td className="p-3 text-primary/80">{guide?.hip_cm ? `${parseFloat(guide.hip_cm).toFixed(0)} cm` : '-'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

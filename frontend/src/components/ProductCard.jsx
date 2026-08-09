@@ -25,7 +25,7 @@ export default function ProductCard({ product }) {
         />
         
         {/* Floating Category/Collection */}
-        <div className="absolute top-4 left-4 flex flex-col space-y-2">
+        <div className="absolute top-4 left-4 flex flex-col space-y-2 items-start">
           {product.collection_name && (
             <span className="bg-primary/95 text-white text-[9px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded">
               {product.collection_name}

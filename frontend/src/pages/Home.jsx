@@ -170,7 +170,7 @@ export default function Home() {
       {/* ========================================================= */}
       {/* 3. HORIZONTAL TICKER BAR (Icon & Benefits Scroll) */}
       {/* ========================================================= */}
-      <section className="pt-56 pb-12 border-b border-neutral-dark/20 bg-neutral-light overflow-hidden">
+      <section className="pt-35 pb-12 border-b border-neutral-dark/20 bg-neutral-light overflow-hidden">
         <div className="flex space-x-12 animate-marquee whitespace-nowrap text-xs font-semibold uppercase tracking-widest text-primary/70">
           {[...benefitsTicker, ...benefitsTicker].map((item, idx) => (
             <div key={idx} className="flex items-center space-x-3 shrink-0">

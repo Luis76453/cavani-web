@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS product_images (
     id SERIAL PRIMARY KEY,
     product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    color_id INTEGER REFERENCES colors(id) ON DELETE SET NULL,
     image_url TEXT NOT NULL,
     is_featured BOOLEAN DEFAULT false,
     display_order INTEGER DEFAULT 0
@@ -199,3 +200,14 @@ CREATE INDEX IF NOT EXISTS idx_variants_product ON product_variants(product_id);
 CREATE INDEX IF NOT EXISTS idx_cart_items_cart ON cart_items(cart_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
+
+-- 19. Product Size Guide
+CREATE TABLE IF NOT EXISTS product_size_guide (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    size_id INTEGER REFERENCES sizes(id) ON DELETE CASCADE,
+    chest_cm DECIMAL(5, 2),
+    waist_cm DECIMAL(5, 2),
+    hip_cm DECIMAL(5, 2),
+    UNIQUE(product_id, size_id)
+);
