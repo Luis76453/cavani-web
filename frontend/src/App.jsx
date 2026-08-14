@@ -14,6 +14,9 @@ import Catalog from './pages/Catalog';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import CheckoutSuccess from './pages/CheckoutSuccess';
+import CheckoutFailure from './pages/CheckoutFailure';
+import CheckoutPending from './pages/CheckoutPending';
 import Auth from './pages/Auth';
 import Profile from './pages/Profile';
 
@@ -24,6 +27,7 @@ import { Nosotros, FAQ, Envios, Cambios, Terminos, Privacidad } from './pages/St
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
 import AdminOrders from './pages/AdminOrders';
+import AdminCategories from './pages/AdminCategories';
 
 // Scroll to top helper component
 function ScrollToTop() {
@@ -89,6 +93,9 @@ export default function App() {
             <Route path="/product/:slug" element={<ShopLayout><ProductDetail /></ShopLayout>} />
             <Route path="/cart" element={<ShopLayout><Cart /></ShopLayout>} />
             <Route path="/checkout" element={<ShopLayout><Checkout /></ShopLayout>} />
+            <Route path="/checkout/success" element={<ShopLayout><CheckoutSuccess /></ShopLayout>} />
+            <Route path="/checkout/failure" element={<ShopLayout><CheckoutFailure /></ShopLayout>} />
+            <Route path="/checkout/pending" element={<ShopLayout><CheckoutPending /></ShopLayout>} />
             <Route path="/auth" element={<ShopLayout><Auth /></ShopLayout>} />
             <Route path="/profile" element={<ShopLayout><Profile /></ShopLayout>} />
             
@@ -104,6 +111,7 @@ export default function App() {
             <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
             <Route path="/admin/products" element={<AdminGuard><AdminProducts /></AdminGuard>} />
             <Route path="/admin/orders" element={<AdminGuard><AdminOrders /></AdminGuard>} />
+            <Route path="/admin/categories" element={<AdminGuard><AdminCategories /></AdminGuard>} />
 
             {/* Catch-all fallback redirect */}
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -12,6 +12,8 @@ export default function AdminProducts() {
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
+  const [isSimpleForm, setIsSimpleForm] = useState(false);
+  const [simpleStock, setSimpleStock] = useState(0);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -81,6 +83,8 @@ export default function AdminProducts() {
       features: '',
       status: 'active'
     });
+    setIsSimpleForm(false);
+    setSimpleStock(0);
     setSelectedColors([]);
     setSelectedSizes([]);
     setProductVariants([]);
@@ -111,12 +115,20 @@ export default function AdminProducts() {
       });
 
       // Load relations to view inside modal form
+      const isSimple = (fullProduct.variants || []).some(v => v.color_id === null && v.size_id === null);
+      setIsSimpleForm(isSimple);
+      if (isSimple && fullProduct.variants.length > 0) {
+        setSimpleStock(fullProduct.variants[0].stock);
+      } else {
+        setSimpleStock(0);
+      }
+
       setProductVariants(fullProduct.variants || []);
       setProductImages(fullProduct.images || []);
       setProductSizeGuide(fullProduct.size_guide || []);
 
-      const activeColorIds = [...new Set((fullProduct.variants || []).map(v => v.color_id))];
-      const activeSizeIds = [...new Set((fullProduct.variants || []).map(v => v.size_id))];
+      const activeColorIds = [...new Set((fullProduct.variants || []).filter(v => v.color_id !== null).map(v => v.color_id))];
+      const activeSizeIds = [...new Set((fullProduct.variants || []).filter(v => v.size_id !== null).map(v => v.size_id))];
       setSelectedColors(activeColorIds);
       setSelectedSizes(activeSizeIds);
 
@@ -280,9 +292,11 @@ export default function AdminProducts() {
       category_id: formData.category_id ? parseInt(formData.category_id) : null,
       collection_id: formData.collection_id ? parseInt(formData.collection_id) : null,
       features: parsedFeatures,
-      variants: productVariants,
-      images: productImages,
-      size_guide: productSizeGuide
+      variants: isSimpleForm
+        ? [{ color_id: null, size_id: null, sku: formData.sku, stock: parseInt(simpleStock || 0) }]
+        : productVariants,
+      images: productImages.map(img => isSimpleForm ? { ...img, color_id: null } : img),
+      size_guide: isSimpleForm ? [] : productSizeGuide
     };
 
     try {
@@ -342,7 +356,7 @@ export default function AdminProducts() {
                   <td className="p-4 font-semibold text-primary">{prod.name}</td>
                   <td className="p-4">{prod.category_name}</td>
                   <td className="p-4">{prod.collection_name || '-'}</td>
-                  <td className="p-4 font-semibold">${parseFloat(prod.price).toFixed(2)}</td>
+                  <td className="p-4 font-semibold">S/{parseFloat(prod.price).toFixed(2)}</td>
                   <td className="p-4">
                     {prod.status === 'active' ? (
                       <span className="px-2.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-green-100 text-green-800">
@@ -397,6 +411,30 @@ export default function AdminProducts() {
 
             {/* Fields */}
             <div className="p-6 space-y-6 flex-grow">
+              {/* Form Type Switcher */}
+              {!editProduct ? (
+                <div className="flex gap-4 border-b border-neutral-light pb-4 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsSimpleForm(false)}
+                    className={`pb-2 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${!isSimpleForm ? 'border-primary text-primary' : 'border-transparent text-primary/50'}`}
+                  >
+                    Prenda (Con Variantes)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsSimpleForm(true)}
+                    className={`pb-2 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${isSimpleForm ? 'border-primary text-primary' : 'border-transparent text-primary/50'}`}
+                  >
+                    Producto Simple (Sin Variantes)
+                  </button>
+                </div>
+              ) : (
+                <div className="mb-4 px-4 py-2.5 bg-neutral-light text-[9px] uppercase font-bold text-primary/75 tracking-wider rounded">
+                  Tipo de producto: {isSimpleForm ? 'Simple / Sin Variantes' : 'Prenda / Con Variantes'}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-1.5">Nombre *</label>
@@ -445,8 +483,21 @@ export default function AdminProducts() {
                     <option value="inactive">Inactivo</option>
                   </select>
                 </div>
+                {isSimpleForm && (
+                  <div>
+                    <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-1.5">Stock Disponible *</label>
+                    <input
+                      type="number"
+                      required
+                      value={simpleStock}
+                      onChange={(e) => setSimpleStock(e.target.value)}
+                      className="w-full text-xs border border-neutral-dark/20 rounded px-3 py-2.5 bg-neutral-light/50 focus:outline-none"
+                      min="0"
+                    />
+                  </div>
+                )}
                 <div>
-                  <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-1.5">Precio de Venta ($) *</label>
+                  <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-1.5">Precio de Venta (S/) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -458,7 +509,7 @@ export default function AdminProducts() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-1.5">Precio de Comparación (Antes) ($)</label>
+                  <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-1.5">Precio de Comparación (Antes) (S/)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -529,7 +580,8 @@ export default function AdminProducts() {
               {/* ========================================== */}
               {/* 1. VARIANTS GRID SELECTION SECTION */}
               {/* ========================================== */}
-              <div className="space-y-4 border-t border-neutral-light pt-6">
+              {!isSimpleForm && (
+                <div className="space-y-4 border-t border-neutral-light pt-6">
                 <h4 className="font-serif text-sm font-semibold text-primary">Gestión de Variantes (Colores y Tallas)</h4>
                 
                 {/* Color selects */}
@@ -636,11 +688,13 @@ export default function AdminProducts() {
                   </div>
                 )}
               </div>
+              )}
 
               {/* ========================================== */}
               {/* 3. PRODUCT SIZE GUIDE SECTION */}
               {/* ========================================== */}
-              <div className="space-y-4 border-t border-neutral-light pt-6">
+              {!isSimpleForm && (
+                <div className="space-y-4 border-t border-neutral-light pt-6">
                 <h4 className="font-serif text-sm font-semibold text-primary">Guía de Tallas (Medidas en cm)</h4>
                 <p className="text-[10px] text-primary/50 italic">Ingresa las medidas corporales recomendadas para cada talla (campos opcionales).</p>
                 
@@ -681,14 +735,65 @@ export default function AdminProducts() {
                   </table>
                 </div>
               </div>
+              )}
 
               {/* ========================================== */}
               {/* 2. S3 IMAGE UPLOAD BY COLOR SECTION */}
               {/* ========================================== */}
               <div className="space-y-4 border-t border-neutral-light pt-6">
-                <h4 className="font-serif text-sm font-semibold text-primary">Imágenes de Producto por Color</h4>
+                <h4 className="font-serif text-sm font-semibold text-primary">Imágenes del Producto</h4>
                 
-                {selectedColors.length === 0 ? (
+                {isSimpleForm ? (
+                  <div className="border border-neutral-light p-4 rounded-xl space-y-3 bg-neutral-light/25">
+                    <div className="flex items-center justify-between border-b border-neutral-light pb-2">
+                      <span className="font-serif text-xs font-semibold text-primary">Lista de Imágenes</span>
+                      <label className="bg-white border border-neutral-dark/25 text-primary text-[8px] font-bold uppercase tracking-wider px-3 py-1 rounded cursor-pointer hover:bg-neutral-light transition-colors">
+                        Subir Archivo S3
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageUpload(e, null)}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {productImages.length === 0 ? (
+                      <p className="text-[9px] text-primary/50 italic">No hay imágenes cargadas para este producto.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {productImages.map((img, idx) => (
+                          <div key={img.id || idx} className="relative group aspect-[3/4] border border-neutral-light rounded-lg overflow-hidden bg-neutral-light shadow-sm">
+                            <img src={img.image_url} alt="Simple product variant" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-primary/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2 text-[8px] text-white">
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleFeaturedImage(img.image_url)}
+                                  className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${img.is_featured ? 'bg-green-600 text-white' : 'bg-white/20 hover:bg-white/40'}`}
+                                >
+                                  {img.is_featured ? 'Destacada' : 'Destacar'}
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveImage(img.image_url)}
+                                className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 rounded w-full uppercase text-center"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                            {img.is_featured && (
+                              <span className="absolute top-1.5 left-1.5 bg-green-600 text-white text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shadow">
+                                Destacada
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : selectedColors.length === 0 ? (
                   <p className="text-[10px] text-primary/50 italic">Seleccione los colores arriba para gestionar las imágenes de este producto.</p>
                 ) : (
                   <div className="space-y-6">

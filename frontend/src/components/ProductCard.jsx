@@ -52,9 +52,9 @@ export default function ProductCard({ product }) {
 
         <div className="mt-4 flex items-center justify-between border-t border-neutral-light pt-4">
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-bold text-primary">${parseFloat(product.price).toFixed(2)}</span>
+            <span className="text-sm font-bold text-primary">S/{parseFloat(product.price).toFixed(2)}</span>
             {product.compare_at_price && (
-              <span className="text-xs line-through text-steel/60">${parseFloat(product.compare_at_price).toFixed(2)}</span>
+              <span className="text-xs line-through text-steel/60">S/{parseFloat(product.compare_at_price).toFixed(2)}</span>
             )}
           </div>
           

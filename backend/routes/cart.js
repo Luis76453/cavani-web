@@ -69,8 +69,8 @@ router.get('/', optionalAuthenticate, async (req, res) => {
        FROM cart_items ci
        JOIN product_variants pv ON ci.variant_id = pv.id
        JOIN products p ON pv.product_id = p.id
-       JOIN colors c ON pv.color_id = c.id
-       JOIN sizes s ON pv.size_id = s.id
+       LEFT JOIN colors c ON pv.color_id = c.id
+       LEFT JOIN sizes s ON pv.size_id = s.id
        WHERE ci.cart_id = $1`,
       [cartId]
     );
@@ -137,8 +137,8 @@ router.post('/items', optionalAuthenticate, async (req, res) => {
        FROM cart_items ci
        JOIN product_variants pv ON ci.variant_id = pv.id
        JOIN products p ON pv.product_id = p.id
-       JOIN colors c ON pv.color_id = c.id
-       JOIN sizes s ON pv.size_id = s.id
+       LEFT JOIN colors c ON pv.color_id = c.id
+       LEFT JOIN sizes s ON pv.size_id = s.id
        WHERE ci.cart_id = $1`,
       [cartId]
     );

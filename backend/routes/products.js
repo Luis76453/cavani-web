@@ -100,8 +100,12 @@ router.get('/', async (req, res) => {
 
 // GET /api/products/categories - Get all categories
 router.get('/categories', async (req, res) => {
+  const { include_inactive } = req.query;
   try {
-    const result = await db.query('SELECT * FROM categories ORDER BY name');
+    const queryStr = include_inactive === 'true'
+      ? 'SELECT * FROM categories ORDER BY name'
+      : 'SELECT * FROM categories WHERE active = true ORDER BY name';
+    const result = await db.query(queryStr);
     res.json({ categories: result.rows });
   } catch (err) {
     console.error('Fetch categories error:', err);
@@ -111,8 +115,12 @@ router.get('/categories', async (req, res) => {
 
 // GET /api/products/collections - Get all collections
 router.get('/collections', async (req, res) => {
+  const { include_inactive } = req.query;
   try {
-    const result = await db.query('SELECT * FROM collections ORDER BY name');
+    const queryStr = include_inactive === 'true'
+      ? 'SELECT * FROM collections ORDER BY name'
+      : 'SELECT * FROM collections WHERE active = true ORDER BY name';
+    const result = await db.query(queryStr);
     res.json({ collections: result.rows });
   } catch (err) {
     console.error('Fetch collections error:', err);
@@ -209,8 +217,8 @@ router.get('/:id', async (req, res) => {
               c.id as color_id, c.name as color_name, c.hex_code as color_hex,
               s.id as size_id, s.name as size_name
        FROM product_variants pv
-       JOIN colors c ON pv.color_id = c.id
-       JOIN sizes s ON pv.size_id = s.id
+       LEFT JOIN colors c ON pv.color_id = c.id
+       LEFT JOIN sizes s ON pv.size_id = s.id
        WHERE pv.product_id = $1`,
       [product.id]
     );
@@ -393,16 +401,43 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
       // A. Upsert active variants
       for (const variant of variants) {
         const { color_id, size_id, sku: vSku, stock } = variant;
-        const upsertRes = await runQuery(
-          `INSERT INTO product_variants (product_id, color_id, size_id, sku, stock)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (product_id, color_id, size_id)
-           DO UPDATE SET stock = EXCLUDED.stock, sku = EXCLUDED.sku
-           RETURNING id`,
-          [productId, color_id, size_id, vSku, stock || 0],
-          client
-        );
-        upsertedVariantIds.push(upsertRes.rows[0].id);
+        
+        if (color_id === null && size_id === null) {
+          // Simple variant sync
+          const checkRes = await runQuery(
+            'SELECT id FROM product_variants WHERE product_id = $1 AND color_id IS NULL AND size_id IS NULL',
+            [productId],
+            client
+          );
+          if (checkRes.rows.length > 0) {
+            const vId = checkRes.rows[0].id;
+            await runQuery(
+              'UPDATE product_variants SET stock = $1, sku = $2 WHERE id = $3',
+              [stock || 0, vSku, vId],
+              client
+            );
+            upsertedVariantIds.push(vId);
+          } else {
+            const insRes = await runQuery(
+              'INSERT INTO product_variants (product_id, color_id, size_id, sku, stock) VALUES ($1, null, null, $2, $3) RETURNING id',
+              [productId, vSku, stock || 0],
+              client
+            );
+            upsertedVariantIds.push(insRes.rows[0].id);
+          }
+        } else {
+          // Standard attribute variant sync
+          const upsertRes = await runQuery(
+            `INSERT INTO product_variants (product_id, color_id, size_id, sku, stock)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (product_id, color_id, size_id)
+             DO UPDATE SET stock = EXCLUDED.stock, sku = EXCLUDED.sku
+             RETURNING id`,
+            [productId, color_id, size_id, vSku, stock || 0],
+            client
+          );
+          upsertedVariantIds.push(upsertRes.rows[0].id);
+        }
       }
 
       // B. Fetch all variants currently registered for this product

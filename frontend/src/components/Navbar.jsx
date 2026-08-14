@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import BrandLogo from './BrandLogo';
 
 export default function Navbar() {
   const { user, logout, isAdmin } = useAuth();
@@ -55,17 +56,15 @@ export default function Navbar() {
         </button>
 
         {/* Logo caVani */}
-        <Link to="/" className="flex items-center space-x-2">
-          <span className="font-serif text-2xl font-bold tracking-widest uppercase">caVani</span>
-          <span className="text-[10px] tracking-widest border border-current px-1.5 py-0.5 rounded font-medium">MED</span>
+        <Link to="/">
+          <BrandLogo />
         </Link>
 
         {/* Desktop Menu */}
         <div className="hidden md:flex items-center space-x-8 text-xs font-semibold tracking-widest uppercase">
           <Link to="/catalog" className="hover:opacity-75 transition-opacity">Ver Todo</Link>
-          <Link to="/catalog?category=scrubs-completos" className="hover:opacity-75 transition-opacity">Scrubs</Link>
-          <Link to="/catalog?collection=zen-flex" className="hover:opacity-75 transition-opacity">Zen Flex</Link>
-          <Link to="/catalog?collection=classic-premium" className="hover:opacity-75 transition-opacity">Classic</Link>
+          <Link to="/catalog?category=scrubs" className="hover:opacity-75 transition-opacity">Scrubs</Link>
+          <Link to="/catalog?category=accesorios" className="hover:opacity-75 transition-opacity">Accesorios</Link>
           <Link to="/nosotros" className="hover:opacity-75 transition-opacity">Nosotros</Link>
         </div>
 
@@ -186,9 +185,8 @@ export default function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-primary text-white py-6 px-6 border-t border-white/10 space-y-4 text-sm font-semibold tracking-wider uppercase">
           <Link to="/catalog" onClick={() => setMobileMenuOpen(false)} className="block py-2">Ver Todo</Link>
-          <Link to="/catalog?category=scrubs-completos" onClick={() => setMobileMenuOpen(false)} className="block py-2">Scrubs</Link>
-          <Link to="/catalog?collection=zen-flex" onClick={() => setMobileMenuOpen(false)} className="block py-2">Zen Flex</Link>
-          <Link to="/catalog?collection=classic-premium" onClick={() => setMobileMenuOpen(false)} className="block py-2">Classic</Link>
+          <Link to="/catalog?category=scrubs" onClick={() => setMobileMenuOpen(false)} className="block py-2">Scrubs</Link>
+          <Link to="/catalog?category=accesorios" onClick={() => setMobileMenuOpen(false)} className="block py-2">Accesorios</Link>
           <Link to="/nosotros" onClick={() => setMobileMenuOpen(false)} className="block py-2">Nosotros</Link>
         </div>
       )}

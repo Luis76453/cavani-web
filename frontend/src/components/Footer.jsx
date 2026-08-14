@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import BrandLogo from './BrandLogo';
 
 export default function Footer() {
   return (
@@ -8,12 +9,12 @@ export default function Footer() {
         
         {/* Brand Information */}
         <div className="space-y-4">
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="font-serif text-2xl font-bold tracking-widest uppercase">caVani</span>
-            <span className="text-[10px] tracking-widest border border-current px-1.5 py-0.5 rounded font-medium">MED</span>
+          <Link to="/">
+            <BrandLogo />
           </Link>
           <p className="text-xs text-neutral-dark leading-relaxed font-light">
-            Redefiniendo la moda médica con diseño sastre, tecnología textil de vanguardia y comodidad incomparable. Creado para los profesionales que mueven la medicina hacia adelante.
+            Redefinimos la moda médica combinando diseño, funcionalidad y comodidad para acompañarte en cada jornada. Prendas pensadas para quienes estudian, trabajan, cuidan y siguen adelante incluso en los días más exigentes. Porque la medicina está cambiando.
+Y la forma de vestirla también.
           </p>
         </div>
 
@@ -22,9 +23,9 @@ export default function Footer() {
           <h4 className="font-semibold tracking-wider text-xs uppercase text-steel-light">Explorar</h4>
           <ul className="space-y-2 text-xs font-light text-neutral-dark">
             <li><Link to="/catalog" className="hover:text-white transition-colors">Todos los Productos</Link></li>
-            <li><Link to="/catalog?category=scrubs-completos" className="hover:text-white transition-colors">Scrubs Premium</Link></li>
-            <li><Link to="/catalog?collection=zen-flex" className="hover:text-white transition-colors">Colección Zen Flex</Link></li>
-            <li><Link to="/catalog?collection=classic-premium" className="hover:text-white transition-colors">Colección Classic</Link></li>
+            <li><Link to="/catalog?category=scrubs" className="hover:text-white transition-colors">Scrubs Premium</Link></li>
+            <li><Link to="/catalog?category=accesorios" className="hover:text-white transition-colors">Accesorios</Link></li>
+            <li><Link to="/catalog?category=enterizos" className="hover:text-white transition-colors">Enterizos</Link></li>
           </ul>
         </div>
 

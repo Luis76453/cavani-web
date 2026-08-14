@@ -65,7 +65,7 @@ export default function AdminOrders() {
                     <span className="font-medium block">{ord.first_name} {ord.last_name}</span>
                     <span className="text-[10px] text-primary/60">{ord.user_email}</span>
                   </td>
-                  <td className="p-4 font-semibold">${parseFloat(ord.total).toFixed(2)}</td>
+                  <td className="p-4 font-semibold">S/{parseFloat(ord.total).toFixed(2)}</td>
                   <td className="p-4 uppercase text-[10px]">{ord.payment_method?.replace(/_/g, ' ')}</td>
                   <td className="p-4 text-primary/70">{new Date(ord.created_at).toLocaleDateString()}</td>
                   <td className="p-4">

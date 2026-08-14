@@ -19,13 +19,30 @@ export function Nosotros() {
 
       <div className="text-xs text-primary/80 font-light leading-relaxed space-y-6">
         <p>
-          caVani nació de una simple observación: los profesionales de la salud pasan la mitad de sus vidas utilizando uniformes diseñados bajo paradigmas obsoletos de incomodidad y estética genérica. Creemos que la ropa médica debe reflejar la dignidad, precisión y profesionalismo de quienes la portan.
+          CAVANI nació de una necesidad real: pasamos gran parte de nuestra formación y de nuestra vida profesional usando uniformes que muchas veces priorizan la funcionalidad por encima de todo lo demás.
+        </p>
+        <p>
+          Y nos preguntamos: ¿por qué no podemos tener ambas cosas?
+        
+        
+          <br />¿Por qué un uniforme médico no puede ser cómodo, funcional y, al mismo tiempo, hacernos sentir bien al usarlo?
+        </p>
+        <p>
+          Así nació CAVANI.
+        </p>
+        <p>
+          Una marca creada desde el amor por nuestra profesión y por quienes, todos los días, eligen cuidar a los demás. <br /> Creemos que la ropa que usamos durante una jornada clínica también puede representar quiénes somos: nuestra dedicación, nuestra disciplina, nuestros sueños y todo el esfuerzo que hay detrás de llegar hasta aquí. <br /> 
+          Cada prenda CAVANI está pensada para acompañarte en esos días largos, en las primeras prácticas, en las guardias, en los nervios antes de un examen y en cada pequeño logro que algún día se convertirá en una gran historia.
+
+          <br />Porque detrás de cada uniforme hay una persona con un propósito.
+
+          
         </p>
         <p>
           Nuestros diseñadores se formaron en la sastrería de alta costura y colaboran activamente con médicos especialistas de diversas disciplinas. El resultado son prendas ergonómicas, estilizadas y equipadas con tecnologías textiles antimicrobianas que actúan como un escudo en entornos hospitalarios exigentes.
         </p>
-        <p className="border-l-4 border-steel pl-6 py-2 italic font-serif text-sm text-primary">
-          "No diseñamos uniformes clínicos tradicionales. Diseñamos moda funcional para los profesionales que están redefiniendo el futuro de la medicina."
+        <p className="border-l-4 border-steel pl-6 py-2 italic font-serif text-xl text-primary">
+          “No queremos hacer simplemente ropa médica, queremos crear prendas que te acompañen mientras construyes la profesional que sueñas ser”
         </p>
       </div>
     </div>
@@ -73,8 +90,8 @@ export function Envios() {
         
         <h3 className="font-semibold text-primary uppercase tracking-wider text-[10px] pt-4">Tarifas y Tiempos de Entrega</h3>
         <ul className="list-disc pl-6 space-y-2">
-          <li><span className="font-semibold">Envío Estándar:</span> Costo de $9.99 USD para compras menores a $150.00 USD. Tiempo estimado de entrega: 3 a 5 días hábiles.</li>
-          <li><span className="font-semibold">Envío Gratuito:</span> Aplicable automáticamente a todos los pedidos cuyo subtotal sea superior a $150.00 USD.</li>
+          <li><span className="font-semibold">Envío Estándar:</span> Costo de S/9.99 USD para compras menores a S/250.00 soles. Tiempo estimado de entrega: 3 a 5 días hábiles.</li>
+          <li><span className="font-semibold">Envío Gratuito:</span> Aplicable automáticamente a todos los pedidos cuyo subtotal sea igual o superior a S/250.00 soles.</li>
         </ul>
       </div>
     </div>

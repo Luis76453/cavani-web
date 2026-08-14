@@ -101,14 +101,19 @@ export default function ProductDetail() {
     );
   }
 
+  // Check if it is a simple product (without color/size options)
+  const isSimpleProduct = product.variants.length > 0 && product.variants[0].color_id === null && product.variants[0].size_id === null;
+
   // Get active variant
-  const activeVariant = product.variants.find(v => v.color_id === selectedColor && v.size_id === selectedSize);
+  const activeVariant = isSimpleProduct
+    ? product.variants[0]
+    : product.variants.find(v => v.color_id === selectedColor && v.size_id === selectedSize);
   const stockAvailable = activeVariant ? activeVariant.stock : 0;
 
   // Extract unique colors and sizes for display selectors
-  const displayColors = Array.from(new Map(product.variants.map(v => [v.color_id, { id: v.color_id, name: v.color_name, hex: v.color_hex }])).values());
-  const displaySizes = Array.from(new Map(product.variants.filter(v => v.color_id === selectedColor).map(v => [v.size_id, { id: v.size_id, name: v.size_name }])).values())
-    .filter(size => ['S', 'M', 'L'].includes(size.name));
+  const displayColors = isSimpleProduct ? [] : Array.from(new Map(product.variants.map(v => [v.color_id, { id: v.color_id, name: v.color_name, hex: v.color_hex }])).values());
+  const displaySizes = isSimpleProduct ? [] : Array.from(new Map(product.variants.filter(v => v.color_id === selectedColor).map(v => [v.size_id, { id: v.size_id, name: v.size_name }])).values())
+    .filter(size => size.name && ['S', 'M', 'L'].includes(size.name));
 
   const handleAddToCart = async (buyNow = false) => {
     if (!activeVariant) {
@@ -178,9 +183,9 @@ export default function ProductDetail() {
               {product.name}
             </h1>
             <div className="mt-4 flex items-center space-x-4">
-              <span className="text-xl font-bold text-primary">${parseFloat(product.price).toFixed(2)}</span>
+              <span className="text-xl font-bold text-primary">S/{parseFloat(product.price).toFixed(2)}</span>
               {product.compare_at_price && (
-                <span className="text-sm line-through text-steel/60">${parseFloat(product.compare_at_price).toFixed(2)}</span>
+                <span className="text-sm line-through text-steel/60">S/{parseFloat(product.compare_at_price).toFixed(2)}</span>
               )}
             </div>
           </div>
@@ -190,48 +195,52 @@ export default function ProductDetail() {
           </p>
 
           {/* Color Selector */}
-          <div className="space-y-3">
-            <h3 className="text-xs uppercase tracking-wider font-semibold text-primary">Color:</h3>
-            <div className="flex space-x-3">
-              {displayColors.map((color) => (
-                <button
-                  key={color.id}
-                  onClick={() => handleColorChange(color.id)}
-                  title={color.name}
-                  className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${selectedColor === color.id ? 'border-primary scale-110' : 'border-transparent hover:scale-105'}`}
-                >
-                  <span className="w-6 h-6 rounded-full border border-neutral-dark/20" style={{ backgroundColor: color.hex }}></span>
-                </button>
-              ))}
+          {!isSimpleProduct && displayColors.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs uppercase tracking-wider font-semibold text-primary">Color:</h3>
+              <div className="flex space-x-3">
+                {displayColors.map((color) => (
+                  <button
+                    key={color.id}
+                    onClick={() => handleColorChange(color.id)}
+                    title={color.name}
+                    className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${selectedColor === color.id ? 'border-primary scale-110' : 'border-transparent hover:scale-105'}`}
+                  >
+                    <span className="w-6 h-6 rounded-full border border-neutral-dark/20" style={{ backgroundColor: color.hex }}></span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Size Selector */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs uppercase tracking-wider font-semibold text-primary">Talla:</h3>
-              {product.size_guide && product.size_guide.length > 0 && (
-                <button 
-                  type="button" 
-                  className="text-[10px] uppercase tracking-wider text-steel hover:underline font-bold" 
-                  onClick={() => setIsSizeGuideOpen(true)}
-                >
-                  Guía de Tallas
-                </button>
-              )}
+          {!isSimpleProduct && displaySizes.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs uppercase tracking-wider font-semibold text-primary">Talla:</h3>
+                {product.size_guide && product.size_guide.length > 0 && (
+                  <button 
+                    type="button" 
+                    className="text-[10px] uppercase tracking-wider text-steel hover:underline font-bold" 
+                    onClick={() => setIsSizeGuideOpen(true)}
+                  >
+                    Guía de Tallas
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-3 flex-wrap">
+                {displaySizes.map((size) => (
+                  <button
+                    key={size.id}
+                    onClick={() => setSelectedSize(size.id)}
+                    className={`text-xs px-4 py-2.5 rounded border transition-all ${selectedSize === size.id ? 'border-primary bg-primary text-white font-bold' : 'border-neutral-dark/30 hover:border-primary text-primary'}`}
+                  >
+                    {size.name}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-3 flex-wrap">
-              {displaySizes.map((size) => (
-                <button
-                  key={size.id}
-                  onClick={() => setSelectedSize(size.id)}
-                  className={`text-xs px-4 py-2.5 rounded border transition-all ${selectedSize === size.id ? 'border-primary bg-primary text-white font-bold' : 'border-neutral-dark/30 hover:border-primary text-primary'}`}
-                >
-                  {size.name}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Quantity Selector & Stock Info */}
           <div className="flex items-center space-x-6">

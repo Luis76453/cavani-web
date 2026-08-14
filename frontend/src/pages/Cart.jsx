@@ -80,9 +80,13 @@ export default function Cart() {
                   <Link to={`/product/${item.slug}`} className="font-serif text-sm font-semibold text-primary hover:text-steel block transition-colors">
                     {item.name}
                   </Link>
-                  <p className="text-[10px] text-primary/70">
-                    Color: <span className="font-semibold">{item.color_name}</span> &middot; Talla: <span className="font-semibold">{item.size_name}</span>
-                  </p>
+                  {(item.color_name || item.size_name) ? (
+                    <p className="text-[10px] text-primary/70">
+                      {item.color_name && <>Color: <span className="font-semibold">{item.color_name}</span></>}
+                      {item.color_name && item.size_name && <> &middot; </>}
+                      {item.size_name && <>Talla: <span className="font-semibold">{item.size_name}</span></>}
+                    </p>
+                  ) : null}
                   
                   {/* Quantity editor */}
                   <div className="flex items-center space-x-4 pt-2">
@@ -116,10 +120,10 @@ export default function Cart() {
                 {/* Price */}
                 <div className="text-right flex-shrink-0">
                   <span className="text-sm font-bold text-primary block">
-                    ${(parseFloat(item.price) * item.quantity).toFixed(2)}
+                    S/{(parseFloat(item.price) * item.quantity).toFixed(2)}
                   </span>
                   <span className="text-[10px] text-primary/60">
-                    ${parseFloat(item.price).toFixed(2)} c/u
+                    S/{parseFloat(item.price).toFixed(2)} c/u
                   </span>
                 </div>
               </div>
@@ -140,17 +144,17 @@ export default function Cart() {
               <div className="flex justify-between">
                 <span>Costo de Envío</span>
                 <span className="font-semibold text-primary">
-                  {shipping === 0 ? 'Gratis' : `$${shipping.toFixed(2)}`}
+                  {shipping === 0 ? 'Gratis' : `S/${shipping.toFixed(2)}`}
                 </span>
               </div>
               {subtotal < 150 && (
                 <p className="text-[10px] text-steel italic">
-                  * Agrega ${(150 - subtotal).toFixed(2)} más para obtener envío gratuito.
+                  * Agrega S/{(150 - subtotal).toFixed(2)} más para obtener envío gratuito.
                 </p>
               )}
               <div className="flex justify-between border-t border-neutral-light pt-4 text-sm font-bold text-primary">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>S/{total.toFixed(2)}</span>
               </div>
             </div>
 

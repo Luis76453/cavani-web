@@ -211,3 +211,10 @@ CREATE TABLE IF NOT EXISTS product_size_guide (
     hip_cm DECIMAL(5, 2),
     UNIQUE(product_id, size_id)
 );
+
+-- En la definición de la tabla categories
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+
+-- En la definición de la tabla collections
+ALTER TABLE collections ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+

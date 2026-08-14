@@ -30,19 +30,14 @@ export default function Home() {
       img: 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=600&q=80' 
     },
     { 
-      name: 'Filipinas (Tops)', 
+      name: 'Accesorios', 
       slug: 'tops', 
       tag: 'Diseño Ergonómico',
       img: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80' 
     },
+    
     { 
-      name: 'Pantalones Jogger', 
-      slug: 'pantalones', 
-      tag: 'Elasticidad 4-Way',
-      img: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80' 
-    },
-    { 
-      name: 'Batas & Lab Coats', 
+      name: 'Enterizos', 
       slug: 'batas-y-chaquetas', 
       tag: 'Corte Sastre',
       img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80' 
@@ -52,8 +47,8 @@ export default function Home() {
   const benefitsTicker = [
     { icon: '🩺', text: 'TEJIDO ANTIMICROBIANO' },
     { icon: '⚡', text: 'ELASTICIDAD 4-WAY STRETCH' },
-    { icon: '📦', text: 'ENVÍO GRATUITO EN COMPRAS DE $150+' },
-    { icon: '✨', text: 'CORTE DE ALTA COSTURA' },
+    { icon: '📦', text: 'ENVÍO GRATUITO A PARTIR DE S/250 SOLES' },
+    { icon: '✨', text: 'BOLSILLOS FUNCIONALES Y ESPACIOSOS' },
     { icon: '🛡️', text: 'BARRERA REPELENTE DE LÍQUIDOS' },
     { icon: '🔒', text: 'GARANTÍA DE AJUSTE PERFECTO' }
   ];
@@ -80,7 +75,7 @@ export default function Home() {
             className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-1.5 rounded-full text-[10px] font-semibold text-neutral-dark mb-8 uppercase tracking-wider"
           >
             <span className="w-2 h-2 rounded-full bg-steel-light animate-pulse"></span>
-            <span>Únete a más de <strong>+15,000 profesionales</strong> de la salud</span>
+            <span>Envíos gratis <strong>a partir de</strong> s/250 soles</span>
           </motion.div>
 
           {/* Main Hero Headline */}
@@ -129,7 +124,7 @@ export default function Home() {
 
         {/* 2. OVERLAPPING CATEGORY CARDS (Popping out of bottom of dark hero) */}
         <div className="max-w-6xl mx-auto relative z-20 -mb-48 mt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-4 sm:px-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-4 sm:px-0">
             {categories.map((cat, idx) => (
               <motion.div
                 key={cat.slug}
@@ -235,21 +230,22 @@ export default function Home() {
               TECNOLOGÍA TEXTIL AVANZADA
             </span>
             <h2 className="font-serif text-3xl sm:text-5xl font-bold text-primary leading-tight">
-              El equilibrio perfecto entre <span className="text-steel">estilo y rendimiento.</span>
+              El equilibrio perfecto entre <span className="text-steel">confort y rendimiento.</span>
             </h2>
           </div>
 
           <p className="text-xs text-primary/80 font-light leading-relaxed">
-            Eliminamos las telas rígidas y acartonadas de la ropa clínica convencional. caVani combina fibras ultraligeras de poliéster y spandex enriquecidas con protección antibacteriana Silvadur™ para que mantengas la frescura y la movilidad durante 24 horas continuas.
+            Diseñamos CAVANI para acompañarte durante jornadas exigentes sin sacrificar comodidad ni estilo. Confeccionado en Perú, nuestro tejido ligero, flexible y antifluido se adapta a tus movimientos, brindándote libertad y comodidad durante todo el día.
           </p>
 
           {/* Checklist with Round Checks (Mirroring MEDVi style) */}
           <div className="space-y-4 pt-2">
             {[
-              'Tratamiento Silvadur™ de iones de plata antimicrobianos',
               'Tejido 4-way stretch de recuperación elástica instantánea',
-              'Bolsillos tácticos profundos con cierres invisibles',
-              'Repelencia comprobada a fluidos médicos y manchas'
+              'Tecnología antifluido que ayuda a proteger la prenda de salpicaduras y líquidos',
+              'Mayor libertad de movimiento y recuperación de la forma',
+              'Bolsillos funcionales y espaciosos para lo esencial'
+
             ].map((item, idx) => (
               <div key={idx} className="flex items-center space-x-3 text-xs text-primary font-medium">
                 <span className="w-5 h-5 rounded-full bg-steel/15 text-steel flex items-center justify-center text-[10px] font-bold">
@@ -275,11 +271,11 @@ export default function Home() {
       {/* ========================================================= */}
       {/* 5. BENTO BOX CARDS (Pastel Background Feature Highlight) */}
       {/* ========================================================= */}
-      <section className="max-w-7xl mx-auto px-6 py-12">
+      {/*<section className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
+        */}  
           {/* Bento Card 1 - Left content, right image */}
-          <motion.div 
+       {/*   <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -303,9 +299,9 @@ export default function Home() {
               />
             </div>
           </motion.div>
-
+*/}
           {/* Bento Card 2 - Left content, right image */}
-          <motion.div 
+         {/* <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -332,11 +328,11 @@ export default function Home() {
 
         </div>
       </section>
-
+*/}
       {/* ========================================================= */}
       {/* 6. FEATURED PRODUCTS GRID */}
       {/* ========================================================= */}
-      <section className="max-w-7xl mx-auto px-6 py-24">
+      <section className="max-w-7xl mx-auto px-6 py-15">
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-12">
           <div>
             <span className="text-[10px] tracking-[0.2em] uppercase font-semibold text-steel block mb-2">Colección Destacada</span>

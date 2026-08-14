@@ -120,7 +120,7 @@ export default function Profile() {
                         <tr key={order.id} className="hover:bg-neutral-light/35 transition-colors">
                           <td className="p-4 font-semibold text-primary">{order.order_number}</td>
                           <td className="p-4">{new Date(order.created_at).toLocaleDateString()}</td>
-                          <td className="p-4 font-semibold">${parseFloat(order.total).toFixed(2)}</td>
+                          <td className="p-4 font-semibold">S/{parseFloat(order.total).toFixed(2)}</td>
                           <td className="p-4">
                             <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                               order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
@@ -209,7 +209,7 @@ export default function Profile() {
                         <span className="font-medium text-primary block">{item.product_name}</span>
                         <span className="text-[10px] text-primary/60">Color: {item.color_name} &middot; Talla: {item.size_name} (x{item.quantity})</span>
                       </div>
-                      <span className="font-bold text-primary">${(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
+                      <span className="font-bold text-primary">S/{(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -231,15 +231,15 @@ export default function Profile() {
               <div className="border-t border-neutral-light pt-4 space-y-2 text-right">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-medium text-primary">${parseFloat(selectedOrder.subtotal).toFixed(2)}</span>
+                  <span className="font-medium text-primary">S/{parseFloat(selectedOrder.subtotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Costo de Envío</span>
-                  <span className="font-medium text-primary">${parseFloat(selectedOrder.shipping_cost).toFixed(2)}</span>
+                  <span className="font-medium text-primary">S/{parseFloat(selectedOrder.shipping_cost).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between border-t border-neutral-light pt-2 text-sm font-bold text-primary">
                   <span>Total</span>
-                  <span>${parseFloat(selectedOrder.total).toFixed(2)}</span>
+                  <span>S/{parseFloat(selectedOrder.total).toFixed(2)}</span>
                 </div>
               </div>
             </div>

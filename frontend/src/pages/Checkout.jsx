@@ -3,28 +3,17 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api from '../utils/api';
-import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+
 
 // Initialize Mercado Pago with locale set for Peru (Peru supports Visa, Mastercard, and Yape natively)
-const mpPublicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
-if (mpPublicKey) {
-  initMercadoPago(mpPublicKey, { locale: 'es-PE' });
-}
 
-// Module-level static customization configuration to avoid reference changes during render
-const MP_CUSTOMIZATION = {
-  paymentMethods: {
-    ticket: undefined, // Disable cash coupons
-    bankTransfer: undefined, // Handled separately
-    creditCard: 'all',
-    debitCard: 'all',
-    mercadoPago: 'all', // Includes digital wallets like Yape
-  },
-};
+
+
+
 
 export default function Checkout() {
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { cartItems, getSubtotal, fetchCart } = useCart();
+  const { cartItems, getSubtotal, fetchCart, loading:cartLoading } = useCart();
   const navigate = useNavigate();
 
   // Redirect if guest
@@ -48,7 +37,7 @@ export default function Checkout() {
     city: '',
     state: '',
     postal_code: '',
-    country: 'México',
+    country: 'Perú',
     phone: ''
   });
 
@@ -142,69 +131,42 @@ export default function Checkout() {
     }
   };
 
-  // Submit handler for Mercado Pago payment processing route
-  // useCallback dependencies do not require 'address' or 'appliedPromo' as we access them via refs
-  const handleMercadoPagoSubmit = useCallback(({ formData }) => {
-    return new Promise(async (resolve, reject) => {
-      setErrorMessage('');
+  const handleMercadoPagoPayment = async () => {
+    setErrorMessage('');
+    
+    // Validate inputs
+    const { address_line1, city, state, postal_code, phone } = address;
+    if (!address_line1 || !city || !state || !postal_code || !phone) {
+      setErrorMessage('Por favor complete todos los campos de dirección requeridos antes de efectuar el pago.');
+      return;
+    }
 
-      // Validate address inputs first before triggering payment
-      const currentAddress = addressRef.current;
-      const currentPromo = appliedPromoRef.current;
-      const { address_line1, city, state, postal_code, phone } = currentAddress;
+    setIsSubmitting(true);
+    try {
+      const res = await api.post('/payments/create-preference', {
+        address,
+        promo_code: appliedPromo
+      });
       
-      if (!address_line1 || !city || !state || !postal_code || !phone) {
-        setErrorMessage('Por favor complete todos los campos de dirección requeridos antes de efectuar el pago.');
-        reject();
-        return;
+      if (res.data && res.data.init_point) {
+        window.location.href = res.data.init_point;
+      } else {
+        throw new Error('La respuesta del servidor no contiene el punto de inicio de pago.');
       }
-
-      // Generate a unique idempotency key to prevent double charging on retry
-      const idempotencyKey = `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
-      try {
-        const res = await api.post('/payments/process', {
-          formData,
-          address: currentAddress,
-          promo_code: currentPromo,
-          idempotency_key: idempotencyKey
-        });
-
-        const { status, order } = res.data;
-
-        if (status === 'approved') {
-          setOrderConfirmed(order);
-          await fetchCart(); // Clear user cart items
-          resolve();
-        } else {
-          setErrorMessage(res.data.message || 'El pago no fue aprobado.');
-          reject();
-        }
-      } catch (err) {
-        console.error('Mercado Pago submit failed:', err);
-        const userMsg = err.response?.data?.message || 'Ocurrió un error al procesar el pago. Por favor, intente con otra tarjeta.';
-        setErrorMessage(userMsg);
-        reject();
-      }
-    });
-  }, [fetchCart]);
-
-  const handlePaymentReady = useCallback(() => {
-    console.log('Mercado Pago Checkout Brick is ready');
-  }, []);
-
-  const handlePaymentError = useCallback((err) => {
-    console.error('Mercado Pago Brick error:', err);
-    setErrorMessage('Ocurrió un error al cargar la pasarela de pagos. Por favor reintente.');
-  }, []);
-
+    } catch (err) {
+      console.error('Error starting Mercado Pago Checkout Pro:', err);
+      setErrorMessage(
+        err.response?.data?.message || 
+        'Ocurrió un error al iniciar la pasarela de pagos de Mercado Pago. Por favor, reintente.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   const total = Math.max(0, subtotal - discount + shipping);
 
-  // Memoize initialization prop to only trigger update if the actual payment total shifts
-  const mpInitialization = useMemo(() => ({
-    amount: total,
-  }), [total]);
-
+  
+  
   if (authLoading) {
     return <div className="py-40 text-center text-xs">Cargando pasarela de pago...</div>;
   }
@@ -223,7 +185,7 @@ export default function Checkout() {
         </p>
         <div className="bg-neutral-light p-6 rounded-lg text-left text-xs space-y-2 border border-neutral-light/50">
           <div><span className="font-semibold text-primary">Número de Pedido:</span> {orderConfirmed.order_number}</div>
-          <div><span className="font-semibold text-primary">Total Facturado:</span> ${parseFloat(orderConfirmed.total).toFixed(2)}</div>
+          <div><span className="font-semibold text-primary">Total Facturado:</span> S/{parseFloat(orderConfirmed.total).toFixed(2)}</div>
           <div><span className="font-semibold text-primary">Estado:</span> {orderConfirmed.status}</div>
         </div>
         <div className="pt-4 flex flex-col gap-3">
@@ -356,35 +318,15 @@ export default function Checkout() {
                 Transferencia Bancaria
               </button>
             </div>
-
-            {paymentMethod === 'credit_card' ? (
-              <div className="bg-white border border-neutral-light/50 p-6 rounded-lg shadow-sm">
-                {import.meta.env.VITE_MP_PUBLIC_KEY ? (
-                  <Payment
-                    initialization={mpInitialization}
-                    customization={MP_CUSTOMIZATION}
-                    onSubmit={handleMercadoPagoSubmit}
-                    onReady={handlePaymentReady}
-                    onError={handlePaymentError}
-                  />
-                ) : (
-                  <div className="p-4 text-xs text-red-500 font-semibold bg-red-50 rounded-md border border-red-200">
-                    Mercado Pago Public Key (VITE_MP_PUBLIC_KEY) no configurada en el cliente.
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-neutral-light border border-neutral-light/50 p-6 rounded-lg text-xs leading-relaxed text-primary/80 font-light">
-                <p className="font-semibold text-primary mb-2">Instrucciones de Transferencia:</p>
-                <p>Por favor transfiera el monto total del pedido a la siguiente cuenta bancaria:</p>
-                <ul className="list-disc pl-5 mt-2 space-y-1">
-                  <li><span className="font-semibold">Banco:</span> Luxury Bank México</li>
-                  <li><span className="font-semibold">CLABE:</span> 1271 8000 1234 5678 90</li>
-                  <li><span className="font-semibold">Beneficiario:</span> caVani Medical S.A. de C.V.</li>
-                  <li><span className="font-semibold">Concepto:</span> Tu correo registrado</li>
-                </ul>
+            
+            {paymentMethod === 'credit_card' && (
+              <div className="bg-neutral-light border border-neutral-light/50 p-6 rounded-lg text-xs leading-relaxed text-primary/80 font-light space-y-2 mt-4">
+                <p className="font-semibold text-primary">Pago Seguro con Mercado Pago:</p>
+                <p>Al hacer clic en el botón de pago en la barra lateral, serás redirigido de manera segura a la plataforma de Mercado Pago para efectuar tu pago.</p>
+                <p>Puedes pagar con tarjeta de crédito, débito o a través de otros medios habilitados por la plataforma.</p>
               </div>
             )}
+            
           </div>
 
         </div>
@@ -400,53 +342,61 @@ export default function Checkout() {
                 <div key={item.id} className="py-4 flex justify-between items-center text-xs">
                   <div className="pr-4">
                     <span className="font-semibold text-primary block">{item.name}</span>
-                    <span className="text-[10px] text-primary/60">Talla {item.size_name} &middot; Color {item.color_name} (x{item.quantity})</span>
+                    <span className="text-[10px] text-primary/60">
+                      {item.size_name ? `Talla ${item.size_name}` : ''}
+                      {item.size_name && item.color_name ? ' · ' : ''}
+                      {item.color_name ? `Color ${item.color_name}` : ''}
+                      {item.size_name || item.color_name ? ' ' : ''}
+                      (x{item.quantity})
+                    </span>
                   </div>
-                  <span className="font-bold text-primary">${(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
+                  <span className="font-bold text-primary">S/{(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
             
             {/* Promo Code Input */}
-            <form onSubmit={applyPromo} className="flex border border-neutral-dark/20 rounded overflow-hidden">
+            <div className="flex border border-neutral-dark/20 rounded overflow-hidden">
               <input
                 type="text"
                 placeholder="Código promocional (WELCOME10)"
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    applyPromo(e);
+                  }
+                }}
                 className="w-full text-xs px-3 py-2 focus:outline-none"
               />
-              <button type="submit" className="bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-4">
+              <button
+                type="button"
+                onClick={applyPromo}
+                className="bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-4"
+              >
                 Aplicar
               </button>
-            </form>
-
-            {appliedPromo && (
-              <div className="text-[10px] font-semibold text-green-600 bg-green-50 px-3 py-2 rounded-md border border-green-200 flex justify-between">
-                <span>Cupón "{appliedPromo}" Aplicado</span>
-                <span>-10%</span>
-              </div>
-            )}
+            </div>
 
             {/* Calculations */}
             <div className="space-y-3 text-xs font-light text-primary/80 border-t border-neutral-light pt-6">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>S/{subtotal.toFixed(2)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-600 font-medium">
                   <span>Descuento</span>
-                  <span>-${discount.toFixed(2)}</span>
+                  <span>-S/{discount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Envío</span>
-                <span>{shipping === 0 ? 'Gratis' : `$${shipping.toFixed(2)}`}</span>
+                <span>{shipping === 0 ? 'Gratis' : `S/${shipping.toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between border-t border-neutral-light pt-4 text-sm font-bold text-primary">
                 <span>Total a Pagar</span>
-                <span>${total.toFixed(2)}</span>
+                <span>S/{total.toFixed(2)}</span>
               </div>
             </div>
 
@@ -456,14 +406,32 @@ export default function Checkout() {
               </div>
             )}
 
-            {/* Submit button shown only for bank transfer (Mercado Pago Bricks has its own button) */}
+            {/* Action buttons depending on payment method */}
             {paymentMethod === 'bank_transfer' && (
               <button
                 type="submit"
                 disabled={isSubmitting}
                 className="w-full bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors focus:outline-none disabled:opacity-50"
               >
-                {isSubmitting ? 'Procesando Pedido...' : `Confirmar y Pagar $${total.toFixed(2)}`}
+                {isSubmitting ? 'Procesando Pedido...' : `Confirmar y Pagar S/${total.toFixed(2)}`}
+              </button>
+            )}
+
+            {paymentMethod === 'credit_card' && (
+              <button
+                type="button"
+                onClick={handleMercadoPagoPayment}
+                disabled={isSubmitting || cartLoading}
+                className="w-full bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors focus:outline-none disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <span>Redirigiendo a Mercado Pago...</span>
+                ) : (
+                  <>
+                    <span>Pagar con Mercado Pago</span>
+                    <span>S/{total.toFixed(2)}</span>
+                  </>
+                )}
               </button>
             )}
 

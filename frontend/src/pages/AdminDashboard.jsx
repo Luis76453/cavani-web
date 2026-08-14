@@ -36,7 +36,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white border border-neutral-light/50 p-6 rounded-lg shadow-sm">
           <span className="text-[10px] uppercase font-bold tracking-wider text-primary/65 block mb-1">Ventas Totales</span>
-          <span className="text-2xl font-bold text-primary">${metrics.totalSales.toFixed(2)}</span>
+          <span className="text-2xl font-bold text-primary">S/{metrics.totalSales.toFixed(2)}</span>
         </div>
         <div className="bg-white border border-neutral-light/50 p-6 rounded-lg shadow-sm">
           <span className="text-[10px] uppercase font-bold tracking-wider text-primary/65 block mb-1">Pedidos Totales</span>
@@ -73,7 +73,7 @@ export default function AdminDashboard() {
                   <tr key={ord.id} className="hover:bg-neutral-light/20 transition-colors">
                     <td className="py-3 font-semibold">{ord.order_number}</td>
                     <td className="py-3">{ord.first_name} {ord.last_name}</td>
-                    <td className="py-3 font-semibold">${parseFloat(ord.total).toFixed(2)}</td>
+                    <td className="py-3 font-semibold">S/{parseFloat(ord.total).toFixed(2)}</td>
                     <td className="py-3">
                       <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
                         ord.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
@@ -104,7 +104,7 @@ export default function AdminDashboard() {
                   <span className="font-semibold text-primary block leading-tight">{item.name}</span>
                   <span className="text-[10px] text-primary/60">{item.units_sold} unidades vendidas</span>
                 </div>
-                <span className="font-bold text-primary">${parseFloat(item.price).toFixed(2)}</span>
+                <span className="font-bold text-primary">S/{parseFloat(item.price).toFixed(2)}</span>
               </div>
             ))}
             {bestSellers.length === 0 && (
