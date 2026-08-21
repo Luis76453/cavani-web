@@ -215,15 +215,41 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* Shipping Address */}
-              <div className="space-y-2 border-t border-neutral-light pt-4">
-                <h4 className="font-semibold text-primary uppercase tracking-wider text-[10px]">Dirección de Envío</h4>
-                <div className="leading-relaxed text-primary/80">
-                  <p>{selectedOrder.address_line1}</p>
-                  {selectedOrder.address_line2 && <p>{selectedOrder.address_line2}</p>}
-                  <p>{selectedOrder.city}, {selectedOrder.state} {selectedOrder.postal_code}</p>
-                  <p>{selectedOrder.country}</p>
-                  <p className="mt-1 font-semibold">Teléfono: {selectedOrder.shipping_phone}</p>
+              {/* Shipping Method and Address */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-t border-neutral-light pt-4">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-primary uppercase tracking-wider text-[10px]">Método de Envío</h4>
+                  <div className="leading-relaxed text-primary/80">
+                    <p className="font-medium text-xs">
+                      {selectedOrder.shipping_method === 'pickup' ? '📍 Recojo en dirección' :
+                       selectedOrder.shipping_method === 'delivery_lima' ? '🛵 Delivery Lima & Callao' :
+                       selectedOrder.shipping_method === 'provincia' ? '📦 Envío a provincia' :
+                       selectedOrder.shipping_method || '🛵 Delivery Lima & Callao'}
+                    </p>
+                    {selectedOrder.shipping_method === 'pickup' && (
+                      <p className="text-[10px] text-steel font-medium italic mt-1">Av. Primavera 120, Of. 402, Surco.</p>
+                    )}
+                    {selectedOrder.shipping_method === 'provincia' && (
+                      <p className="text-[10px] text-steel font-medium italic mt-1">El costo se coordinará vía WhatsApp.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-primary uppercase tracking-wider text-[10px]">
+                    {selectedOrder.shipping_method === 'pickup' ? 'Información de Contacto' : 'Dirección de Envío'}
+                  </h4>
+                  <div className="leading-relaxed text-primary/80">
+                    {selectedOrder.shipping_method !== 'pickup' && (
+                      <>
+                        <p>{selectedOrder.address_line1}</p>
+                        {selectedOrder.address_line2 && <p>{selectedOrder.address_line2}</p>}
+                        <p>{selectedOrder.city}, {selectedOrder.state} {selectedOrder.postal_code}</p>
+                        <p>{selectedOrder.country}</p>
+                      </>
+                    )}
+                    <p className="mt-1 font-semibold">Teléfono: {selectedOrder.shipping_phone}</p>
+                  </div>
                 </div>
               </div>
 

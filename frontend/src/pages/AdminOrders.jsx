@@ -50,6 +50,7 @@ export default function AdminOrders() {
               <tr className="bg-neutral-light border-b border-neutral-light/50 font-bold uppercase tracking-wider text-primary/60">
                 <th className="p-4">Pedido</th>
                 <th className="p-4">Cliente</th>
+                <th className="p-4">Envío / Dirección</th>
                 <th className="p-4">Total</th>
                 <th className="p-4">Método de Pago</th>
                 <th className="p-4">Fecha</th>
@@ -64,6 +65,30 @@ export default function AdminOrders() {
                   <td className="p-4">
                     <span className="font-medium block">{ord.first_name} {ord.last_name}</span>
                     <span className="text-[10px] text-primary/60">{ord.user_email}</span>
+                  </td>
+                  <td className="p-4">
+                    <span className="font-semibold block uppercase text-[9px] tracking-wider text-steel mb-0.5">
+                      {ord.shipping_method === 'pickup' ? '📍 Recojo' :
+                       ord.shipping_method === 'provincia' ? '📦 Provincia' :
+                       '🛵 Delivery Lima'}
+                    </span>
+                    <span className="text-[10px] text-primary/80 leading-normal block">
+                      {ord.shipping_method === 'pickup' ? (
+                        <span className="text-steel font-medium">Recojo — coordinar por WhatsApp</span>
+                      ) : ord.shipping_method === 'provincia' ? (
+                        <span className="text-steel font-medium">
+                          Provincia — coordinar por WhatsApp ({ord.city || 'S/D'}, {ord.state || 'S/D'})
+                        </span>
+                      ) : (
+                        <>
+                          {ord.address_line1}
+                          {ord.city && ` · ${ord.city}`}
+                        </>
+                      )}
+                    </span>
+                    {ord.shipping_phone && (
+                      <span className="text-[9px] text-primary/50 block mt-0.5">Tel: {ord.shipping_phone}</span>
+                    )}
                   </td>
                   <td className="p-4 font-semibold">S/{parseFloat(ord.total).toFixed(2)}</td>
                   <td className="p-4 uppercase text-[10px]">{ord.payment_method?.replace(/_/g, ' ')}</td>

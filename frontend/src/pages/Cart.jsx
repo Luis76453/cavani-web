@@ -149,7 +149,7 @@ export default function Cart() {
               </div>
               {subtotal < 150 && (
                 <p className="text-[10px] text-steel italic">
-                  * Agrega S/{(150 - subtotal).toFixed(2)} más para obtener envío gratuito.
+                  * Agrega S/{(250 - subtotal).toFixed(2)} más para obtener envío gratuito.
                 </p>
               )}
               <div className="flex justify-between border-t border-neutral-light pt-4 text-sm font-bold text-primary">

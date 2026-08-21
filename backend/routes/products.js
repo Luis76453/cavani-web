@@ -511,6 +511,32 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/products/:id/status - Update product status only (Admin only)
+router.put('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (status !== 'active' && status !== 'inactive') {
+    return res.status(400).json({ message: 'Estado inválido. Debe ser active o inactive.' });
+  }
+
+  try {
+    const result = await db.query(
+      'UPDATE products SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Producto no encontrado.' });
+    }
+
+    res.json({ message: 'Estado del producto actualizado.', product: result.rows[0] });
+  } catch (err) {
+    console.error('Update product status error:', err);
+    res.status(500).json({ message: 'Error al actualizar el estado del producto.' });
+  }
+});
+
 // DELETE /api/products/:id - Delete product (Admin only)
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   const { id } = req.params;

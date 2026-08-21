@@ -218,3 +218,4 @@ ALTER TABLE categories ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT 
 -- En la definición de la tabla collections
 ALTER TABLE collections ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
 
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_method VARCHAR(20) DEFAULT 'delivery_lima';

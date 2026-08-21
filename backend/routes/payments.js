@@ -24,7 +24,7 @@ if (mpAccessToken) {
  * Protected route to initialize a secure payment preference for Checkout Pro.
  */
 router.post('/create-preference', authenticateToken, async (req, res) => {
-  const { address, promo_code } = req.body;
+  const { address, promo_code, shipping_method } = req.body;
   const userId = req.user.id;
 
   if (!address) {
@@ -33,7 +33,7 @@ router.post('/create-preference', authenticateToken, async (req, res) => {
 
   try {
     // 1. Recalculate cart totals server-side (do not trust frontend pricing)
-    const { subtotal, discount, shipping, total, items } = await calculateCartTotal(userId, promo_code);
+    const { subtotal, discount, shipping, total, items } = await calculateCartTotal(userId, promo_code, shipping_method);
 
     if (items.length === 0) {
       return res.status(400).json({ message: 'El carrito está vacío.' });
@@ -84,6 +84,7 @@ router.post('/create-preference', authenticateToken, async (req, res) => {
 
     // 3. Setup redirection URLs and metadata
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
     const backUrls = {
       success: `${frontendUrl}/checkout/success`,
       failure: `${frontendUrl}/checkout/failure`,
@@ -94,10 +95,11 @@ router.post('/create-preference', authenticateToken, async (req, res) => {
     const externalReferencePayload = {
       userId,
       address,
-      promo_code
+      promo_code,
+      shipping_method
     };
     const external_reference = JSON.stringify(externalReferencePayload);
-
+    
     const preferenceBody = {
       items: mpItems,
       payer: {
@@ -107,12 +109,13 @@ router.post('/create-preference', authenticateToken, async (req, res) => {
       external_reference,
       notification_url: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/payments/webhook`
     };
-
+    console.log('notification_url que se va a enviar:', preferenceBody.notification_url);
     // NOTE: auto_return will fail if success back_url contains localhost (it requires a public HTTPS url).
     // In production or ngrok development settings, we enable it to redirect the user back automatically.
-    if (process.env.BACKEND_URL && process.env.BACKEND_URL.startsWith('https')) {
+    // Timer to return 5 seconds
+    {/*if (frontendUrl.startsWith('https')) {
       preferenceBody.auto_return = 'approved';
-    }
+    } */}
 
     if (!preferenceClient) {
       throw new Error('Mercado Pago SDK clients are not initialized.');
@@ -138,7 +141,7 @@ router.post('/webhook', async (req, res) => {
   const secret = process.env.MP_WEBHOOK_SECRET;
 
   // 1. Validate signature using official algorithm if secret is defined
-  if (secret) {
+  {/*if (secret) {
     try {
       const xSignature = req.headers['x-signature'];
       const xRequestId = req.headers['x-request-id'];
@@ -161,7 +164,7 @@ router.post('/webhook', async (req, res) => {
     }
   } else {
     console.warn('[Webhook] Warning: MP_WEBHOOK_SECRET is not configured. Skipping signature verification.');
-  }
+  } */}
 
   // 2. Fetch full payment information on payment events
   const { type, data } = req.body;
@@ -176,7 +179,7 @@ router.post('/webhook', async (req, res) => {
 
       if (payment.status === 'approved') {
         const { external_reference, id: mpPaymentId } = payment;
-        const { userId, address, promo_code } = JSON.parse(external_reference);
+        const { userId, address, promo_code, shipping_method } = JSON.parse(external_reference);
 
         // Prevent duplicate orders by checking if order already exists for this payment ID
         const existingOrder = await db.query('SELECT * FROM orders WHERE mp_payment_id = $1', [String(mpPaymentId)]);
@@ -186,6 +189,7 @@ router.post('/webhook', async (req, res) => {
             address,
             payment_method: 'mercado_pago',
             promo_code,
+            shipping_method,
             payment_status: 'PAID',
             mp_payment_id: String(mpPaymentId)
           });

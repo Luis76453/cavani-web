@@ -101,9 +101,11 @@ router.get('/users', async (req, res) => {
 router.get('/orders', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT o.*, u.email as user_email, u.first_name, u.last_name
+      `SELECT o.*, u.email as user_email, u.first_name, u.last_name,
+              a.address_line1, a.address_line2, a.city, a.state, a.postal_code, a.phone as shipping_phone
        FROM orders o
        LEFT JOIN users u ON o.user_id = u.id
+       LEFT JOIN addresses a ON o.address_id = a.id
        ORDER BY o.created_at DESC`
     );
     res.json({ orders: result.rows });

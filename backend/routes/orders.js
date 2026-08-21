@@ -7,7 +7,7 @@ const { createOrderFromCart } = require('../services/orderService');
 
 // POST /api/orders - Place a new order
 router.post('/', authenticateToken, async (req, res) => {
-  const { address, payment_method, promo_code } = req.body;
+  const { address, payment_method, promo_code, shipping_method } = req.body;
   const userId = req.user.id;
 
   try {
@@ -16,6 +16,7 @@ router.post('/', authenticateToken, async (req, res) => {
       address,
       payment_method,
       promo_code,
+      shipping_method,
       payment_status: 'PENDING'
     });
 
@@ -91,6 +92,26 @@ router.get('/:id', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Fetch order detail error:', err);
     res.status(500).json({ message: 'Error al obtener detalle del pedido.' });
+  }
+});
+
+// GET /api/orders/payment/:paymentId - Fetch order metadata by payment_id
+router.get('/payment/:paymentId', authenticateToken, async (req, res) => {
+  const { paymentId } = req.params;
+  try {
+    const result = await db.query(
+      `SELECT o.id, o.order_number, o.total, o.shipping_method, o.status
+       FROM orders o
+       WHERE o.mp_payment_id = $1 AND o.user_id = $2`,
+      [paymentId, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Pedido no encontrado.' });
+    }
+    res.json({ order: result.rows[0] });
+  } catch (err) {
+    console.error('Fetch order by payment ID error:', err);
+    res.status(500).json({ message: 'Error al obtener el pedido.' });
   }
 });
 

@@ -11,6 +11,21 @@ import api from '../utils/api';
 
 
 
+const getWhatsAppLink = (order) => {
+  const phoneNumber = '+51941460237';
+  let text = '';
+  
+  if (order.shipping_method === 'pickup') {
+    text = `Hola caVani, he realizado el pedido ${order.order_number} por un total de S/${parseFloat(order.total).toFixed(2)} con el método de envío 'Recojo en dirección'. Deseo coordinar el día y hora para retirar mi producto.`;
+  } else if (order.shipping_method === 'provincia') {
+    text = `Hola caVani, he realizado el pedido ${order.order_number} por un total de S/${parseFloat(order.total).toFixed(2)} con el método de envío 'Envío a provincia'. Deseo coordinar el costo y los detalles de envío por pagar.`;
+  } else {
+    text = `Hola caVani, he realizado el pedido ${order.order_number} por un total de S/${parseFloat(order.total).toFixed(2)} con el método de envío 'Delivery Lima & Callao'.`;
+  }
+  
+  return `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(text)}`;
+};
+
 export default function Checkout() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { cartItems, getSubtotal, fetchCart, loading:cartLoading } = useCart();
@@ -25,7 +40,20 @@ export default function Checkout() {
 
   // Pricing
   const subtotal = getSubtotal();
-  const shipping = subtotal > 150 ? 0 : 9.99;
+  const [shippingMethod, setShippingMethod] = useState('delivery_lima');
+  const shipping = useMemo(() => {
+    if (shippingMethod === 'pickup') {
+      return 0;
+    }
+    if (shippingMethod === 'delivery_lima') {
+      return subtotal > 250 ? 0 : 10.00;
+    }
+    if (shippingMethod === 'provincia') {
+      return 0;
+    }
+    return 0;
+  }, [shippingMethod, subtotal]);
+
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [discount, setDiscount] = useState(0);
@@ -107,19 +135,52 @@ export default function Checkout() {
       return;
     }
 
-    // Validate inputs
+    // Validate inputs based on shipping method
     const { address_line1, city, state, postal_code, phone } = address;
-    if (!address_line1 || !city || !state || !postal_code || !phone) {
-      setErrorMessage('Por favor complete todos los campos de dirección requeridos.');
-      return;
+    let finalAddress = { ...address };
+
+    if (shippingMethod === 'pickup') {
+      if (!phone) {
+        setErrorMessage('Por favor complete su teléfono de contacto.');
+        return;
+      }
+      finalAddress = {
+        address_line1: 'Recojo en Tienda',
+        address_line2: '',
+        city: 'Lima',
+        state: 'Lima',
+        postal_code: '15038',
+        country: 'Perú',
+        phone
+      };
+    } else if (shippingMethod === 'provincia') {
+      if (!city || !state || !phone) {
+        setErrorMessage('Por favor complete la provincia, departamento y teléfono de contacto.');
+        return;
+      }
+      finalAddress = {
+        address_line1: 'Por coordinar por WhatsApp',
+        address_line2: '',
+        city,
+        state,
+        postal_code: '00000',
+        country: 'Perú',
+        phone
+      };
+    } else {
+      if (!address_line1 || !city || !state || !postal_code || !phone) {
+        setErrorMessage('Por favor complete todos los campos de dirección requeridos.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
       const res = await api.post('/orders', {
-        address,
+        address: finalAddress,
         payment_method: paymentMethod,
-        promo_code: appliedPromo
+        promo_code: appliedPromo,
+        shipping_method: shippingMethod
       });
       setOrderConfirmed(res.data.order);
       await fetchCart(); // Clear local/API cart items
@@ -134,18 +195,51 @@ export default function Checkout() {
   const handleMercadoPagoPayment = async () => {
     setErrorMessage('');
     
-    // Validate inputs
+    // Validate inputs based on shipping method
     const { address_line1, city, state, postal_code, phone } = address;
-    if (!address_line1 || !city || !state || !postal_code || !phone) {
-      setErrorMessage('Por favor complete todos los campos de dirección requeridos antes de efectuar el pago.');
-      return;
+    let finalAddress = { ...address };
+
+    if (shippingMethod === 'pickup') {
+      if (!phone) {
+        setErrorMessage('Por favor complete su teléfono de contacto antes de efectuar el pago.');
+        return;
+      }
+      finalAddress = {
+        address_line1: 'Recojo en Tienda',
+        address_line2: '',
+        city: 'Lima',
+        state: 'Lima',
+        postal_code: '15038',
+        country: 'Perú',
+        phone
+      };
+    } else if (shippingMethod === 'provincia') {
+      if (!city || !state || !phone) {
+        setErrorMessage('Por favor complete la provincia, departamento y teléfono antes de efectuar el pago.');
+        return;
+      }
+      finalAddress = {
+        address_line1: 'Por coordinar por WhatsApp',
+        address_line2: '',
+        city,
+        state,
+        postal_code: '00000',
+        country: 'Perú',
+        phone
+      };
+    } else {
+      if (!address_line1 || !city || !state || !postal_code || !phone) {
+        setErrorMessage('Por favor complete todos los campos de dirección requeridos antes de efectuar el pago.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
       const res = await api.post('/payments/create-preference', {
-        address,
-        promo_code: appliedPromo
+        address: finalAddress,
+        promo_code: appliedPromo,
+        shipping_method: shippingMethod
       });
       
       if (res.data && res.data.init_point) {
@@ -196,6 +290,29 @@ export default function Checkout() {
             Volver a la Tienda
           </Link>
         </div>
+        <div className="p-4 bg-green-50 border border-green-200 rounded-md text-xs text-green-800 space-y-3 mt-4 text-left">
+          <p className="font-semibold text-primary">
+            {orderConfirmed.shipping_method === 'delivery_lima' 
+              ? 'Detalles de tu Envío:' 
+              : '⚠️ Coordinación Requerida:'}
+          </p>
+          <p>
+            {orderConfirmed.shipping_method === 'pickup' ? 'Por favor coordina el día y hora para recoger tu producto en nuestra oficina.' :
+             orderConfirmed.shipping_method === 'provincia' ? 'Por favor coordina el costo y detalles de envío por pagar a provincia.' :
+             'Tu pedido se enviará a tu dirección registrada en Lima & Callao.'}
+          </p>
+          <a 
+            href={getWhatsAppLink(orderConfirmed)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-2 bg-[#25D366] hover:bg-[#20ba5a] text-white text-[10px] font-bold uppercase tracking-widest px-6 py-3 rounded transition-colors w-full justify-center"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.504-5.724-1.466L0 24zm5.835-4.19c1.673.993 3.327 1.548 5.378 1.549 5.568 0 10.099-4.529 10.1-10.098.002-2.698-1.047-5.234-2.952-7.14C16.49 2.215 13.976.998 12.007.998c-5.572 0-10.104 4.532-10.107 10.101-.001 1.88.488 3.713 1.419 5.337L2.241 21.6l5.244-1.374c.159.088.291.16.407.24zM16.52 13.88c-.244-.122-1.45-.714-1.67-.796-.223-.081-.385-.122-.547.122-.162.244-.63.796-.772.957-.142.162-.284.181-.528.06-2.485-1.242-3.447-2.186-4.57-4.116-.142-.244-.142-.423-.02-.545.11-.11.244-.284.366-.427.121-.142.162-.244.244-.407.081-.162.041-.305-.02-.427-.06-.122-.547-1.32-.75-1.81-.197-.477-.398-.412-.547-.42-.14-.007-.302-.008-.463-.008-.162 0-.427.06-.65.305-.224.244-.854.834-.854 2.035 0 1.2 1.88 2.378 1.139 2.5 5.08 4.37 6.64 5.33 6.945 5.51.305.18.508.12.69.06.182-.06.772-.315.88-.62.108-.305.108-.567.076-.62-.03-.053-.122-.09-.366-.212z"/>
+            </svg>
+            <span>Coordinar por WhatsApp</span>
+          </a>
+        </div>
       </div>
     );
   }
@@ -221,83 +338,162 @@ export default function Checkout() {
         {/* Left Columns: Forms */}
         <div className="lg:col-span-2 space-y-12">
           
+          {/* Shipping Method Selector */}
+          <div className="space-y-6 bg-white border border-neutral-light/50 p-8 rounded-lg shadow-sm">
+            <h2 className="font-serif text-xl font-medium text-primary border-b border-neutral-light pb-3">Método de Envío</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                type="button"
+                onClick={() => setShippingMethod('delivery_lima')}
+                className={`p-4 border rounded-md text-xs font-semibold uppercase tracking-wider text-center transition-all flex flex-col items-center justify-center gap-2 ${shippingMethod === 'delivery_lima' ? 'border-primary bg-primary text-white font-semibold' : 'border-neutral-dark/20 text-primary'}`}
+              >
+                <span>🛵 Delivery Lima & Callao</span>
+                <span className="text-[10px] opacity-80">
+                  {subtotal > 250 ? '¡Envío Gratis!' : '+S/10.00'}
+                </span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setShippingMethod('pickup')}
+                className={`p-4 border rounded-md text-xs font-semibold uppercase tracking-wider text-center transition-all flex flex-col items-center justify-center gap-2 ${shippingMethod === 'pickup' ? 'border-primary bg-primary text-white font-semibold' : 'border-neutral-dark/20 text-primary'}`}
+              >
+                <span>📍 Recojo en dirección</span>
+                <span className="text-[10px] opacity-80">Gratis (S/0.00)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShippingMethod('provincia')}
+                className={`p-4 border rounded-md text-xs font-semibold uppercase tracking-wider text-center transition-all flex flex-col items-center justify-center gap-2 ${shippingMethod === 'provincia' ? 'border-primary bg-primary text-white font-semibold' : 'border-neutral-dark/20 text-primary'}`}
+              >
+                <span>📦 Envío a provincia</span>
+                <span className="text-[10px] opacity-80">Por Coordinar</span>
+              </button>
+            </div>
+            
+            {shippingMethod === 'pickup' && (
+              <div className="bg-neutral-light border border-neutral-light/50 p-4 rounded text-[11px] leading-relaxed text-primary/80">
+                <p className="font-semibold text-primary mb-1">📍 Dirección de recojo:</p>
+                <p>Av. Primavera 120, Oficina 402, Chacarilla, Santiago de Surco, Lima.</p>
+                <p className="mt-2 font-medium">Horario de atención: Lunes a Viernes de 9:00 am a 6:00 pm. Coordinar previamente.</p>
+              </div>
+            )}
+
+            {shippingMethod === 'provincia' && (
+              <div className="bg-neutral-light border border-neutral-light/50 p-4 rounded text-[11px] leading-relaxed text-primary/80">
+                <p className="font-semibold text-primary mb-1">📦 Información de Envío a Provincia:</p>
+                <p>El costo de envío **NO está incluido** en este pago. Se realizará mediante Olva Courier o Shalom con cobro en destino.</p>
+                <p className="mt-2 font-semibold text-steel">El costo de envío se coordinará contigo vía WhatsApp una vez procesado el pedido.</p>
+              </div>
+            )}
+          </div>
+
           {/* Shipping Address */}
-          <div className="space-y-6">
-            <h2 className="font-serif text-xl font-medium text-primary border-b border-neutral-light pb-3">Dirección de Envío</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Dirección Linea 1 *</label>
-                <input
-                  type="text"
-                  name="address_line1"
-                  required
-                  value={address.address_line1}
-                  onChange={handleInputChange}
-                  placeholder="Calle y número de casa"
-                  className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
-                />
+          {shippingMethod !== 'pickup' ? (
+            <div className="space-y-6">
+              <h2 className="font-serif text-xl font-medium text-primary border-b border-neutral-light pb-3">Dirección de Envío</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {shippingMethod === 'delivery_lima' && (
+                  <>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Dirección Linea 1 *</label>
+                      <input
+                        type="text"
+                        name="address_line1"
+                        required
+                        value={address.address_line1}
+                        onChange={handleInputChange}
+                        placeholder="Calle y número de casa"
+                        className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Dirección Linea 2 (Opcional)</label>
+                      <input
+                        type="text"
+                        name="address_line2"
+                        value={address.address_line2}
+                        onChange={handleInputChange}
+                        placeholder="Departamento, suite, piso, etc."
+                        className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                      />
+                    </div>
+                  </>
+                )}
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">
+                    {shippingMethod === 'provincia' ? 'Provincia / Ciudad *' : 'Ciudad *'}
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    required
+                    value={address.city}
+                    onChange={handleInputChange}
+                    placeholder={shippingMethod === 'provincia' ? 'Ej. Arequipa' : 'Ciudad'}
+                    className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">
+                    {shippingMethod === 'provincia' ? 'Departamento / Región *' : 'Estado / Región *'}
+                  </label>
+                  <input
+                    type="text"
+                    name="state"
+                    required
+                    value={address.state}
+                    onChange={handleInputChange}
+                    placeholder={shippingMethod === 'provincia' ? 'Ej. Arequipa' : 'Estado'}
+                    className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  />
+                </div>
+                {shippingMethod === 'delivery_lima' && (
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Código Postal *</label>
+                    <input
+                      type="text"
+                      name="postal_code"
+                      required
+                      value={address.postal_code}
+                      onChange={handleInputChange}
+                      placeholder="C.P."
+                      className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Teléfono de Contacto *</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    required
+                    value={address.phone}
+                    onChange={handleInputChange}
+                    placeholder="Teléfono móvil"
+                    className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  />
+                </div>
               </div>
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Dirección Linea 2 (Opcional)</label>
-                <input
-                  type="text"
-                  name="address_line2"
-                  value={address.address_line2}
-                  onChange={handleInputChange}
-                  placeholder="Departamento, suite, piso, etc."
-                  className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
-                />
-              </div>
+            </div>
+          ) : (
+            <div className="space-y-6 bg-white border border-neutral-light/50 p-8 rounded-lg shadow-sm">
+              <h2 className="font-serif text-xl font-medium text-primary border-b border-neutral-light pb-3">Información de Contacto</h2>
               <div>
-                <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Ciudad *</label>
-                <input
-                  type="text"
-                  name="city"
-                  required
-                  value={address.city}
-                  onChange={handleInputChange}
-                  placeholder="Ciudad"
-                  className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Estado / Región *</label>
-                <input
-                  type="text"
-                  name="state"
-                  required
-                  value={address.state}
-                  onChange={handleInputChange}
-                  placeholder="Estado"
-                  className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Código Postal *</label>
-                <input
-                  type="text"
-                  name="postal_code"
-                  required
-                  value={address.postal_code}
-                  onChange={handleInputChange}
-                  placeholder="C.P."
-                  className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Teléfono de Envío *</label>
+                <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Teléfono de Contacto *</label>
                 <input
                   type="tel"
                   name="phone"
                   required
                   value={address.phone}
                   onChange={handleInputChange}
-                  placeholder="Teléfono"
-                  className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  placeholder="Teléfono móvil"
+                  className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white max-w-sm"
                 />
               </div>
             </div>
-          </div>
+          )}
 
           {/* Payment Method */}
           <div className="space-y-6">
@@ -434,6 +630,22 @@ export default function Checkout() {
                 )}
               </button>
             )}
+
+            {/* Help / WhatsApp coordination */}
+            <div className="border-t border-neutral-light pt-6 text-center">
+              <p className="text-[10px] text-primary/60 mb-2">¿Tienes dudas con tu pedido o los métodos de envío?</p>
+              <a
+                href={`https://wa.me/51941460237?text=${encodeURIComponent("Hola caVani, estoy en la página de checkout y tengo algunas dudas sobre mi pedido.")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-2 text-primary hover:text-steel transition-colors font-bold text-[10px] uppercase tracking-wider"
+              >
+                <svg className="w-4 h-4 text-[#25D366]" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.504-5.724-1.466L0 24zm5.835-4.19c1.673.993 3.327 1.548 5.378 1.549 5.568 0 10.099-4.529 10.1-10.098.002-2.698-1.047-5.234-2.952-7.14C16.49 2.215 13.976.998 12.007.998c-5.572 0-10.104 4.532-10.107 10.101-.001 1.88.488 3.713 1.419 5.337L2.241 21.6l5.244-1.374c.159.088.291.16.407.24zM16.52 13.88c-.244-.122-1.45-.714-1.67-.796-.223-.081-.385-.122-.547.122-.162.244-.63.796-.772.957-.142.162-.284.181-.528.06-2.485-1.242-3.447-2.186-4.57-4.116-.142-.244-.142-.423-.02-.545.11-.11.244-.284.366-.427.121-.142.162-.244.244-.407.081-.162.041-.305-.02-.427-.06-.122-.547-1.32-.75-1.81-.197-.477-.398-.412-.547-.42-.14-.007-.302-.008-.463-.008-.162 0-.427.06-.65.305-.224.244-.854.834-.854 2.035 0 1.2 1.88 2.378 1.139 2.5 5.08 4.37 6.64 5.33 6.945 5.51.305.18.508.12.69.06.182-.06.772-.315.88-.62.108-.305.108-.567.076-.62-.03-.053-.122-.09-.366-.212z"/>
+                </svg>
+                <span>Consultas por WhatsApp</span>
+              </a>
+            </div>
 
           </div>
 

@@ -12,7 +12,7 @@ export default function Footer() {
           <Link to="/">
             <BrandLogo />
           </Link>
-          <p className="text-xs text-neutral-dark leading-relaxed font-light">
+          <p className="text-xs text-neutral-dark leading-relaxed font-light py-5">
             Redefinimos la moda médica combinando diseño, funcionalidad y comodidad para acompañarte en cada jornada. Prendas pensadas para quienes estudian, trabajan, cuidan y siguen adelante incluso en los días más exigentes. Porque la medicina está cambiando.
 Y la forma de vestirla también.
           </p>

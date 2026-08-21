@@ -64,6 +64,7 @@ export default function Navbar() {
         <div className="hidden md:flex items-center space-x-8 text-xs font-semibold tracking-widest uppercase">
           <Link to="/catalog" className="hover:opacity-75 transition-opacity">Ver Todo</Link>
           <Link to="/catalog?category=scrubs" className="hover:opacity-75 transition-opacity">Scrubs</Link>
+          <Link to="/catalog?category=enterizos" className="hover:opacity-75 transition-opacity">Enterizos</Link>
           <Link to="/catalog?category=accesorios" className="hover:opacity-75 transition-opacity">Accesorios</Link>
           <Link to="/nosotros" className="hover:opacity-75 transition-opacity">Nosotros</Link>
         </div>
@@ -186,6 +187,7 @@ export default function Navbar() {
         <div className="md:hidden bg-primary text-white py-6 px-6 border-t border-white/10 space-y-4 text-sm font-semibold tracking-wider uppercase">
           <Link to="/catalog" onClick={() => setMobileMenuOpen(false)} className="block py-2">Ver Todo</Link>
           <Link to="/catalog?category=scrubs" onClick={() => setMobileMenuOpen(false)} className="block py-2">Scrubs</Link>
+          <Link to="/catalog?category=enterizos" onClick={() => setMobileMenuOpen(false)} className="block py-2">Enterizos</Link>
           <Link to="/catalog?category=accesorios" onClick={() => setMobileMenuOpen(false)} className="block py-2">Accesorios</Link>
           <Link to="/nosotros" onClick={() => setMobileMenuOpen(false)} className="block py-2">Nosotros</Link>
         </div>

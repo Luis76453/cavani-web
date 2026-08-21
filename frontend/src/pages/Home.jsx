@@ -116,7 +116,7 @@ export default function Home() {
               to="/nosotros"
               className="bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold uppercase tracking-widest px-8 py-4 rounded-full transition-all duration-300"
             >
-              Tecnología caVani
+              Nuestra Esencia
             </Link>
           </motion.div>
 

@@ -4,7 +4,7 @@ const db = require('../config/db');
  * Recalculates cart pricing on the server side using values directly from the database.
  * Never trust prices passed from the frontend.
  */
-async function calculateCartTotal(userId, promo_code) {
+async function calculateCartTotal(userId, promo_code, shipping_method = 'delivery_lima') {
   // 1. Get user cart
   const cartRes = await db.query('SELECT id FROM carts WHERE user_id = $1', [userId]);
   if (cartRes.rows.length === 0) {
@@ -55,7 +55,16 @@ async function calculateCartTotal(userId, promo_code) {
     }
   }
 
-  const shipping = subtotal > 150 ? 0 : 9.99;
+  let shipping = 0;
+  if (shipping_method === 'pickup') {
+    shipping = 0;
+  } else if (shipping_method === 'delivery_lima') {
+    shipping = subtotal > 250 ? 0 : 10.00;
+  } else if (shipping_method === 'provincia') {
+    shipping = 0;
+  } else {
+    shipping = subtotal > 250 ? 0 : 9.99;
+  }
   const total = Math.max(0, subtotal - discount + shipping);
 
   // Round values to 2 decimal places to prevent floating point issues in gateway
@@ -73,13 +82,13 @@ async function calculateCartTotal(userId, promo_code) {
 /**
  * Creates a physical order from the current items in the user's cart.
  */
-async function createOrderFromCart({ userId, address, payment_method, promo_code, payment_status = 'PENDING', mp_payment_id = null }) {
+async function createOrderFromCart({ userId, address, payment_method, promo_code, shipping_method = 'delivery_lima', payment_status = 'PENDING', mp_payment_id = null }) {
   if (!address || !payment_method) {
     throw new Error('La dirección de envío y el método de pago son obligatorios.');
   }
 
   // 1. Recalculate totals and get items from DB
-  const { subtotal, discount, shipping, total, items, promotionId, cartId } = await calculateCartTotal(userId, promo_code);
+  const { subtotal, discount, shipping, total, items, promotionId, cartId } = await calculateCartTotal(userId, promo_code, shipping_method);
 
   if (items.length === 0) {
     throw new Error('El carrito está vacío.');
@@ -113,9 +122,9 @@ async function createOrderFromCart({ userId, address, payment_method, promo_code
   // 4. Insert Order Log
   const orderNumber = `CV-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
   const orderRes = await db.query(
-    `INSERT INTO orders (user_id, order_number, status, subtotal, shipping_cost, total, address_id, payment_status, payment_method, promotion_id, mp_payment_id)
-     VALUES ($1, $2, 'PENDING', $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-    [userId, orderNumber, subtotal, shipping, total, addressId, payment_status, payment_method, promotionId, mp_payment_id]
+    `INSERT INTO orders (user_id, order_number, status, subtotal, shipping_cost, total, address_id, payment_status, payment_method, promotion_id, mp_payment_id, shipping_method)
+     VALUES ($1, $2, 'PENDING', $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+    [userId, orderNumber, subtotal, shipping, total, addressId, payment_status, payment_method, promotionId, mp_payment_id, shipping_method]
   );
   const order = orderRes.rows[0];
 

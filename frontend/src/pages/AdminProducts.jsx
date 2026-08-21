@@ -14,6 +14,7 @@ export default function AdminProducts() {
   const [editProduct, setEditProduct] = useState(null);
   const [isSimpleForm, setIsSimpleForm] = useState(false);
   const [simpleStock, setSimpleStock] = useState(0);
+  const [deletedVariantKeys, setDeletedVariantKeys] = useState(new Set());
   
   const [formData, setFormData] = useState({
     name: '',
@@ -63,6 +64,20 @@ export default function AdminProducts() {
     loadData();
   }, []);
 
+  const handleToggleStatus = async (product) => {
+    try {
+      const newStatus = product.status === 'active' ? 'inactive' : 'active';
+      const res = await api.put(`/products/${product.id}/status`, { status: newStatus });
+      const updatedProduct = res.data.product;
+      
+      // Update state locally to prevent full list reload and visual flickering
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, status: updatedProduct.status } : p));
+    } catch (err) {
+      console.error('Error toggling product status:', err);
+      alert('Error al actualizar el estado del producto.');
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -70,6 +85,7 @@ export default function AdminProducts() {
 
   const handleOpenAddModal = () => {
     setEditProduct(null);
+    setDeletedVariantKeys(new Set());
     setFormData({
       name: '',
       slug: '',
@@ -95,6 +111,7 @@ export default function AdminProducts() {
 
   const handleOpenEditModal = async (prod) => {
     try {
+      setDeletedVariantKeys(new Set());
       // Fetch full details including individual variants and all images
       const res = await api.get(`/products/${prod.id}`);
       const fullProduct = res.data.product;
@@ -174,12 +191,34 @@ export default function AdminProducts() {
 
   const handleColorToggle = (colorId) => {
     setSelectedColors(prev => {
-      const updatedColors = prev.includes(colorId) 
+      const isRemoving = prev.includes(colorId);
+      const updatedColors = isRemoving 
         ? prev.filter(id => id !== colorId) 
         : [...prev, colorId];
       
-      // Regene combinations
-      syncVariants(updatedColors, selectedSizes);
+      if (!isRemoving) {
+        // If we are checking the color, remove any manual deletion locks for it
+        setDeletedVariantKeys(keys => {
+          const next = new Set(keys);
+          for (const k of keys) {
+            if (k.startsWith(`${colorId}-`)) {
+              next.delete(k);
+            }
+          }
+          return next;
+        });
+        
+        const nextKeys = new Set(deletedVariantKeys);
+        for (const k of nextKeys) {
+          if (k.startsWith(`${colorId}-`)) {
+            nextKeys.delete(k);
+          }
+        }
+        syncVariants(updatedColors, selectedSizes, nextKeys);
+      } else {
+        syncVariants(updatedColors, selectedSizes);
+      }
+      
       // Clean up orphaned images for deselected color
       setProductImages(imgs => imgs.filter(img => updatedColors.includes(img.color_id) || img.color_id === null));
       
@@ -189,20 +228,46 @@ export default function AdminProducts() {
 
   const handleSizeToggle = (sizeId) => {
     setSelectedSizes(prev => {
-      const updatedSizes = prev.includes(sizeId) 
+      const isRemoving = prev.includes(sizeId);
+      const updatedSizes = isRemoving 
         ? prev.filter(id => id !== sizeId) 
         : [...prev, sizeId];
       
-      syncVariants(selectedColors, updatedSizes);
+      if (!isRemoving) {
+        // If we are checking the size, remove any manual deletion locks for it
+        setDeletedVariantKeys(keys => {
+          const next = new Set(keys);
+          for (const k of keys) {
+            if (k.endsWith(`-${sizeId}`)) {
+              next.delete(k);
+            }
+          }
+          return next;
+        });
+        
+        const nextKeys = new Set(deletedVariantKeys);
+        for (const k of nextKeys) {
+          if (k.endsWith(`-${sizeId}`)) {
+            nextKeys.delete(k);
+          }
+        }
+        syncVariants(selectedColors, updatedSizes, nextKeys);
+      } else {
+        syncVariants(selectedColors, updatedSizes);
+      }
       return updatedSizes;
     });
   };
 
-  const syncVariants = (activeColors, activeSizes) => {
+  const syncVariants = (activeColors, activeSizes, excludedKeys = deletedVariantKeys) => {
     setProductVariants(prev => {
       const updatedList = [];
       for (const cId of activeColors) {
         for (const sId of activeSizes) {
+          const key = `${cId}-${sId}`;
+          if (excludedKeys.has(key)) {
+            continue;
+          }
           const existing = prev.find(v => v.color_id === cId && v.size_id === sId);
           if (existing) {
             updatedList.push(existing);
@@ -220,6 +285,15 @@ export default function AdminProducts() {
       }
       return updatedList;
     });
+  };
+
+  const handleRemoveVariant = (colorId, sizeId) => {
+    setDeletedVariantKeys(prev => {
+      const next = new Set(prev);
+      next.add(`${colorId}-${sizeId}`);
+      return next;
+    });
+    setProductVariants(prev => prev.filter(v => !(v.color_id === colorId && v.size_id === sizeId)));
   };
 
   const handleVariantFieldChange = (colorId, sizeId, field, value) => {
@@ -342,7 +416,7 @@ export default function AdminProducts() {
                 <th className="p-4">Categoría</th>
                 <th className="p-4">Colección</th>
                 <th className="p-4">Precio</th>
-                <th className="p-4">Estado</th>
+                <th className="p-4 text-center">Estado</th>
                 <th className="p-4 text-right">Acciones</th>
               </tr>
             </thead>
@@ -357,16 +431,18 @@ export default function AdminProducts() {
                   <td className="p-4">{prod.category_name}</td>
                   <td className="p-4">{prod.collection_name || '-'}</td>
                   <td className="p-4 font-semibold">S/{parseFloat(prod.price).toFixed(2)}</td>
-                  <td className="p-4">
-                    {prod.status === 'active' ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-green-100 text-green-800">
-                        Activo
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-neutral-dark/15 text-primary/65">
-                        Inactivo
-                      </span>
-                    )}
+                  <td className="p-4 text-center">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStatus(prod)}
+                      className={`px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-wider transition-colors focus:outline-none ${
+                        prod.status === 'active' 
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                          : 'bg-neutral-dark/15 text-primary/65 hover:bg-neutral-dark/30 hover:text-primary/90'
+                      }`}
+                    >
+                      {prod.status === 'active' ? 'Activo' : 'Inactivo'}
+                    </button>
                   </td>
                   <td className="p-4 text-right space-x-3">
                     <button
@@ -628,7 +704,7 @@ export default function AdminProducts() {
                 </div>
 
                 {/* Stock table */}
-                {selectedColors.length > 0 && selectedSizes.length > 0 && (
+                {productVariants.filter(v => v.color_id !== null && v.size_id !== null).length > 0 && (
                   <div className="space-y-3 bg-neutral-light/50 p-4 rounded-xl border border-neutral-light">
                     <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60">Stock y SKU de Variantes</label>
                     <div className="overflow-x-auto">
@@ -638,50 +714,54 @@ export default function AdminProducts() {
                             <th className="py-1">Combinación</th>
                             <th className="py-1">SKU Variante</th>
                             <th className="py-1 text-center">Stock</th>
+                            <th className="py-1 text-right">Quitar</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-dark/5">
-                          {selectedColors.flatMap(cId => 
-                            selectedSizes.map(sId => {
-                              const colorObj = dbColors.find(c => c.id === cId);
-                              const sizeObj = dbSizes.find(s => s.id === sId);
-                              if (!colorObj || !sizeObj) return null;
-                              
-                              const variant = productVariants.find(v => v.color_id === cId && v.size_id === sId) || {
-                                color_id: cId,
-                                size_id: sId,
-                                sku: `${formData.sku || 'CV'}-${colorObj.name.substring(0, 3).toUpperCase()}-${sizeObj.name}`,
-                                stock: 0
-                              };
-
-                              return (
-                                <tr key={`${cId}-${sId}`} className="py-1.5">
-                                  <td className="py-1 flex items-center space-x-2">
-                                    <span className="w-3.5 h-3.5 rounded-full border border-neutral-dark/25" style={{ backgroundColor: colorObj.hex_code }}></span>
-                                    <span className="font-semibold text-primary">{colorObj.name} &middot; Talla {sizeObj.name}</span>
-                                  </td>
-                                  <td className="py-1">
-                                    <input
-                                      type="text"
-                                      value={variant.sku}
-                                      onChange={(e) => handleVariantFieldChange(cId, sId, 'sku', e.target.value)}
-                                      className="border border-neutral-dark/20 rounded px-2 py-1 text-xs w-48 bg-white focus:outline-none"
-                                      placeholder="SKU-COLOR-SIZE"
-                                    />
-                                  </td>
-                                  <td className="py-1">
-                                    <input
-                                      type="number"
-                                      value={variant.stock}
-                                      onChange={(e) => handleVariantFieldChange(cId, sId, 'stock', parseInt(e.target.value) || 0)}
-                                      className="border border-neutral-dark/20 rounded px-2 py-1 text-xs w-20 bg-white text-center focus:outline-none mx-auto block"
-                                      min="0"
-                                    />
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          )}
+                          {productVariants.filter(v => v.color_id !== null && v.size_id !== null).map((variant) => {
+                            const colorObj = dbColors.find(c => c.id === variant.color_id);
+                            const sizeObj = dbSizes.find(s => s.id === variant.size_id);
+                            if (!colorObj || !sizeObj) return null;
+                            
+                            return (
+                              <tr key={`${variant.color_id}-${variant.size_id}`} className="py-1.5">
+                                <td className="py-1 flex items-center space-x-2">
+                                  <span className="w-3.5 h-3.5 rounded-full border border-neutral-dark/25" style={{ backgroundColor: colorObj.hex_code }}></span>
+                                  <span className="font-semibold text-primary">{colorObj.name} &middot; Talla {sizeObj.name}</span>
+                                </td>
+                                <td className="py-1">
+                                  <input
+                                    type="text"
+                                    value={variant.sku}
+                                    onChange={(e) => handleVariantFieldChange(variant.color_id, variant.size_id, 'sku', e.target.value)}
+                                    className="border border-neutral-dark/20 rounded px-2 py-1 text-xs w-48 bg-white focus:outline-none"
+                                    placeholder="SKU-COLOR-SIZE"
+                                  />
+                                </td>
+                                <td className="py-1">
+                                  <input
+                                    type="number"
+                                    value={variant.stock}
+                                    onChange={(e) => handleVariantFieldChange(variant.color_id, variant.size_id, 'stock', parseInt(e.target.value) || 0)}
+                                    className="border border-neutral-dark/20 rounded px-2 py-1 text-xs w-20 bg-white text-center focus:outline-none mx-auto block"
+                                    min="0"
+                                  />
+                                </td>
+                                <td className="py-1 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveVariant(variant.color_id, variant.size_id)}
+                                    className="text-red-500 hover:text-red-700 p-1 focus:outline-none hover:scale-110 transition-transform"
+                                    title="Quitar variante de la lista"
+                                  >
+                                    <svg className="w-4.5 h-4.5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

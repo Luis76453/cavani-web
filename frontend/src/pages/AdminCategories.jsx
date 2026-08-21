@@ -69,8 +69,15 @@ export default function AdminCategories() {
     try {
       const updatedItem = { ...item, active: !item.active };
       const endpoint = type === 'category' ? `/admin/categories/${item.id}` : `/admin/collections/${item.id}`;
-      await api.put(endpoint, updatedItem);
-      loadData();
+      const res = await api.put(endpoint, updatedItem);
+      const returnedItem = type === 'category' ? res.data.category : res.data.collection;
+      
+      // Update state locally to prevent full list reload and visual flickering
+      if (type === 'category') {
+        setCategories(prev => prev.map(cat => cat.id === item.id ? returnedItem : cat));
+      } else {
+        setCollections(prev => prev.map(col => col.id === item.id ? returnedItem : col));
+      }
     } catch (err) {
       console.error('Error toggling taxonomy status:', err);
       alert('Error al actualizar el estado.');
@@ -191,7 +198,7 @@ export default function AdminCategories() {
                       className={`px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-wider transition-colors ${
                         item.active 
                           ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                          : 'bg-neutral-dark/15 text-primary/65 hover:bg-neutral-dark/25'
+                          : 'bg-neutral-dark/15 text-primary/65 hover:bg-neutral-dark/30 hover:text-primary/90'
                       }`}
                     >
                       {item.active ? 'Activo' : 'Inactivo'}
