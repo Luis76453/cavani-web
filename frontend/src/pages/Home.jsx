@@ -96,7 +96,7 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="text-xs sm:text-sm font-light text-neutral-dark/85 max-w-2xl leading-relaxed mb-10"
           >
-            Diseñamos scrubs de alto rendimiento con tecnología antimicrobiana y sastrería ergonómica. Directo a tu consultorio, sin intermediarios, para superar las guardias más exigentes.
+            Diseñamos scrubs que combinan comodidad, funcionalidad y estilo para acompañarte en clases, prácticas, guardias y cada paso de tu camino.
           </motion.p>
 
           {/* CTA Buttons */}

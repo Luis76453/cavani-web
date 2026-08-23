@@ -40,11 +40,10 @@ export default function AdminProducts() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // fetch including inactive items for administrator view
       const prodRes = await api.get('/products?include_inactive=true');
       const catRes = await api.get('/products/categories');
       const colRes = await api.get('/products/collections');
-      const colorRes = await api.get('/products/colors');
+      const colorRes = await api.get('/products/colors?include_inactive=true');
       const sizeRes = await api.get('/products/sizes');
       
       setProducts(prodRes.data.products);
@@ -664,21 +663,23 @@ export default function AdminProducts() {
                 <div className="space-y-2">
                   <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/65">Colores Mapeados</label>
                   <div className="flex flex-wrap gap-3">
-                    {dbColors.map(c => {
-                      const isChecked = selectedColors.includes(c.id);
-                      return (
-                        <label key={c.id} className="flex items-center space-x-2 border border-neutral-dark/15 rounded-full px-3 py-1 bg-white cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => handleColorToggle(c.id)}
-                            className="rounded border-neutral-dark/30 text-primary"
-                          />
-                          <span className="w-3 h-3 rounded-full border border-neutral-dark/25" style={{ backgroundColor: c.hex_code }}></span>
-                          <span className="text-[10px] font-medium text-primary/80">{c.name}</span>
-                        </label>
-                      );
-                    })}
+                    {dbColors
+                      .filter(c => c.active || selectedColors.includes(c.id))
+                      .map(c => {
+                        const isChecked = selectedColors.includes(c.id);
+                        return (
+                          <label key={c.id} className="flex items-center space-x-2 border border-neutral-dark/15 rounded-full px-3 py-1 bg-white cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleColorToggle(c.id)}
+                              className="rounded border-neutral-dark/30 text-primary"
+                            />
+                            <span className="w-3 h-3 rounded-full border border-neutral-dark/25" style={{ backgroundColor: c.hex_code }}></span>
+                            <span className="text-[10px] font-medium text-primary/80">{c.name}</span>
+                          </label>
+                        );
+                      })}
                   </div>
                 </div>
 

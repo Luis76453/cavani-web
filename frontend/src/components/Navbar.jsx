@@ -39,7 +39,7 @@ export default function Navbar() {
 
   return (
     <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-primary text-white ${scrolled ? 'shadow-md py-4' : 'py-6'}`}>
-      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-3 min-[400px]:px-6 flex items-center justify-between">
         
         {/* Mobile menu button */}
         <button 
@@ -70,7 +70,7 @@ export default function Navbar() {
         </div>
 
         {/* Secondary Icons (Search, Favorites, Account, Cart) */}
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-3 min-[400px]:space-x-5 min-[500px]:space-x-6">
           
           {/* Search Toggle */}
           <div className="relative">

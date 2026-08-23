@@ -262,4 +262,94 @@ router.put('/collections/:id', async (req, res) => {
   }
 });
 
+// GET /api/admin/promotions - Get all coupons (Admin)
+router.get('/promotions', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM promotions ORDER BY id DESC');
+    res.json({ promotions: result.rows });
+  } catch (err) {
+    console.error('Error fetching promotions:', err);
+    res.status(500).json({ message: 'Error al obtener los cupones.' });
+  }
+});
+
+// POST /api/admin/promotions - Create a new coupon (Admin)
+router.post('/promotions', async (req, res) => {
+  const { code, description, discount_type, discount_value, start_date, end_date, active } = req.body;
+
+  if (!code || !discount_type || discount_value === undefined) {
+    return res.status(400).json({ message: 'Código, tipo de descuento y valor son requeridos.' });
+  }
+
+  const cleanCode = code.toUpperCase().trim();
+  const isActive = active !== undefined ? !!active : true;
+
+  try {
+    const result = await db.query(
+      `INSERT INTO promotions (code, description, discount_type, discount_value, start_date, end_date, active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [cleanCode, description || '', discount_type, parseFloat(discount_value), start_date || null, end_date || null, isActive]
+    );
+    res.status(201).json({ promotion: result.rows[0] });
+  } catch (err) {
+    console.error('Error creating promotion:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ message: 'Ya existe un cupón con ese código.' });
+    }
+    res.status(500).json({ message: 'Error al crear el cupón.' });
+  }
+});
+
+// PUT /api/admin/promotions/:id - Update a coupon (Admin)
+router.put('/promotions/:id', async (req, res) => {
+  const { id } = req.params;
+  const { code, description, discount_type, discount_value, start_date, end_date, active } = req.body;
+
+  try {
+    const check = await db.query('SELECT * FROM promotions WHERE id = $1', [id]);
+    if (check.rows.length === 0) {
+      return res.status(404).json({ message: 'Cupón no encontrado.' });
+    }
+    const current = check.rows[0];
+    const newCode = code ? code.toUpperCase().trim() : current.code;
+    const newDesc = description !== undefined ? description : current.description;
+    const newType = discount_type || current.discount_type;
+    const newVal = discount_value !== undefined ? parseFloat(discount_value) : current.discount_value;
+    const newStart = start_date !== undefined ? start_date : current.start_date;
+    const newEnd = end_date !== undefined ? end_date : current.end_date;
+    const newActive = active !== undefined ? !!active : current.active;
+
+    const result = await db.query(
+      `UPDATE promotions 
+       SET code = $1, description = $2, discount_type = $3, discount_value = $4, start_date = $5, end_date = $6, active = $7
+       WHERE id = $8 RETURNING *`,
+      [newCode, newDesc, newType, newVal, newStart || null, newEnd || null, newActive, id]
+    );
+    res.json({ promotion: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating promotion:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ message: 'Ya existe otro cupón con ese código.' });
+    }
+    res.status(500).json({ message: 'Error al actualizar el cupón.' });
+  }
+});
+
+// DELETE /api/admin/promotions/:id - Delete a coupon (Admin)
+router.delete('/promotions/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await db.query('DELETE FROM promotions WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Cupón no encontrado.' });
+    }
+    res.json({ message: 'Cupón eliminado correctamente.', id });
+  } catch (err) {
+    console.error('Error deleting promotion:', err);
+    res.status(500).json({ message: 'Error al eliminar el cupón.' });
+  }
+});
+
 module.exports = router;

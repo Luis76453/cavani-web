@@ -79,17 +79,20 @@ async function main() {
 
   // Seeding Colors
   const colors = [
-    { id: 1, name: 'Navy Profundo', hex: '#0B132B' },
-    { id: 2, name: 'Azul Acero', hex: '#415A77' },
-    { id: 3, name: 'Azul Claro', hex: '#778DA9' },
-    { id: 4, name: 'Blanco Puro', hex: '#FFFFFF' },
-    { id: 5, name: 'Gris Carbón', hex: '#1C2541' }
+    { id: 1, name: 'Navy Profundo', hex: '#0B132B', active: false },
+    { id: 2, name: 'Azul Acero', hex: '#415A77', active: false },
+    { id: 3, name: 'Azul Claro', hex: '#778DA9', active: false },
+    { id: 4, name: 'Blanco Puro', hex: '#FFFFFF', active: false },
+    { id: 5, name: 'Gris Carbón', hex: '#1C2541', active: false },
+    { id: 6, name: 'Navy', hex: '#0A142F', active: true },
+    { id: 7, name: 'Royal', hex: '#0C3BC4', active: true },
+    { id: 8, name: 'Cielo', hex: '#84A9F8', active: true }
   ];
   for (const c of colors) {
     if (dbType === 'postgres') {
-      await db.query(`INSERT INTO colors (id, name, hex_code) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`, [c.id, c.name, c.hex]);
+      await db.query(`INSERT INTO colors (id, name, hex_code, active) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET active = EXCLUDED.active, name = EXCLUDED.name`, [c.id, c.name, c.hex, c.active]);
     } else {
-      await db.query(`INSERT OR IGNORE INTO colors (id, name, hex_code) VALUES ($1, $2, $3)`, [c.id, c.name, c.hex]);
+      await db.query(`INSERT OR REPLACE INTO colors (id, name, hex_code, active) VALUES ($1, $2, $3, $4)`, [c.id, c.name, c.hex, c.active]);
     }
   }
 

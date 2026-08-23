@@ -28,6 +28,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
 import AdminOrders from './pages/AdminOrders';
 import AdminCategories from './pages/AdminCategories';
+import AdminCoupons from './pages/AdminCoupons';
 
 // Scroll to top helper component
 function ScrollToTop() {
@@ -70,9 +71,9 @@ function AdminGuard({ children }) {
   }
 
   return (
-    <div className="flex h-screen bg-neutral-light">
+    <div className="flex flex-col lg:flex-row h-screen bg-neutral-light overflow-hidden">
       <AdminSidebar />
-      <main className="flex-grow flex flex-col h-screen overflow-hidden">
+      <main className="flex-grow flex flex-col lg:h-screen overflow-hidden">
         {children}
       </main>
     </div>
@@ -112,6 +113,7 @@ export default function App() {
             <Route path="/admin/products" element={<AdminGuard><AdminProducts /></AdminGuard>} />
             <Route path="/admin/orders" element={<AdminGuard><AdminOrders /></AdminGuard>} />
             <Route path="/admin/categories" element={<AdminGuard><AdminCategories /></AdminGuard>} />
+            <Route path="/admin/coupons" element={<AdminGuard><AdminCoupons /></AdminGuard>} />
 
             {/* Catch-all fallback redirect */}
             <Route path="*" element={<Navigate to="/" replace />} />

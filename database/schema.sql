@@ -70,6 +70,21 @@ CREATE TABLE IF NOT EXISTS products (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 8. Colors
+CREATE TABLE IF NOT EXISTS colors (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    hex_code VARCHAR(10) UNIQUE NOT NULL,
+    active BOOLEAN DEFAULT true
+);
+
+-- 9. Sizes
+CREATE TABLE IF NOT EXISTS sizes (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(20) UNIQUE NOT NULL
+);
+
+
 -- 7. Product Images
 CREATE TABLE IF NOT EXISTS product_images (
     id SERIAL PRIMARY KEY,
@@ -80,18 +95,6 @@ CREATE TABLE IF NOT EXISTS product_images (
     display_order INTEGER DEFAULT 0
 );
 
--- 8. Colors
-CREATE TABLE IF NOT EXISTS colors (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(50) UNIQUE NOT NULL,
-    hex_code VARCHAR(10) UNIQUE NOT NULL
-);
-
--- 9. Sizes
-CREATE TABLE IF NOT EXISTS sizes (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(20) UNIQUE NOT NULL
-);
 
 -- 10. Product Variants (sizes + colors combination)
 CREATE TABLE IF NOT EXISTS product_variants (
@@ -219,3 +222,17 @@ ALTER TABLE categories ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT 
 ALTER TABLE collections ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
 
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_method VARCHAR(20) DEFAULT 'delivery_lima';
+
+ALTER TABLE colors ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+
+UPDATE colors SET active = false;
+
+SELECT setval('colors_id_seq', (SELECT COALESCE(MAX(id), 0) FROM colors));
+
+INSERT INTO colors (name, hex_code, active)
+VALUES 
+('Navy', '#0A142F', true),
+('Royal', '#0C3BC4', true),
+('Cielo', '#84A9F8', true)
+ON CONFLICT (hex_code) 
+DO UPDATE SET name = EXCLUDED.name, active = true;

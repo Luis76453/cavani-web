@@ -130,8 +130,12 @@ router.get('/collections', async (req, res) => {
 
 // GET /api/products/colors - Get all colors
 router.get('/colors', async (req, res) => {
+  const { include_inactive } = req.query;
   try {
-    const result = await db.query('SELECT * FROM colors ORDER BY name');
+    const queryStr = include_inactive === 'true'
+      ? 'SELECT * FROM colors ORDER BY name'
+      : 'SELECT * FROM colors WHERE active = true ORDER BY name';
+    const result = await db.query(queryStr);
     res.json({ colors: result.rows });
   } catch (err) {
     console.error(err);
@@ -219,7 +223,7 @@ router.get('/:id', async (req, res) => {
        FROM product_variants pv
        LEFT JOIN colors c ON pv.color_id = c.id
        LEFT JOIN sizes s ON pv.size_id = s.id
-       WHERE pv.product_id = $1`,
+       WHERE pv.product_id = $1 AND (c.active IS NULL OR c.active = true)`,
       [product.id]
     );
     product.variants = variantsResult.rows;

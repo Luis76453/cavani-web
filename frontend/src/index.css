@@ -78,3 +78,23 @@
 .animate-fade-in {
   animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* BrandLogo Responsiveness Stages */
+@media (max-width: 500px) {
+  /* Stage 1: Hide C A and A N I, leaving only V and the badge next to it */
+  .logo-text-side {
+    display: none !important;
+  }
+}
+
+@media (max-width: 360px) {
+  /* Stage 2: Push the badge to a new line below the V */
+  .brand-logo-container {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  .brand-logo-container > :not([hidden]) ~ :not([hidden]) {
+    margin-left: 0 !important;
+    margin-top: 0.25rem !important;
+  }
+}
