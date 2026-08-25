@@ -83,20 +83,29 @@ async function calculateCartTotal(userId, promo_code, shipping_method = 'deliver
  * Creates a physical order from the current items in the user's cart.
  */
 async function createOrderFromCart({ userId, address, payment_method, promo_code, shipping_method = 'delivery_lima', payment_status = 'PENDING', mp_payment_id = null }) {
+  console.log(`[ORDER-SERVICE] Iniciando createOrderFromCart para usuario ID: ${userId}. Metodo Pago: ${payment_method}, Estado Pago: ${payment_status}, MP Payment ID: ${mp_payment_id}`);
+  
   if (!address || !payment_method) {
+    console.error('[ORDER-SERVICE] Error: Direccion o Metodo de Pago faltante.');
     throw new Error('La dirección de envío y el método de pago son obligatorios.');
   }
 
   // 1. Recalculate totals and get items from DB
+  console.log('[ORDER-SERVICE] Calculando totales del carrito en la base de datos...');
   const { subtotal, discount, shipping, total, items, promotionId, cartId } = await calculateCartTotal(userId, promo_code, shipping_method);
+  console.log(`[ORDER-SERVICE] Totales recalculados: Subtotal: ${subtotal}, Descuento: ${discount}, Envio: ${shipping}, Total: ${total}. Items count: ${items.length}`);
 
   if (items.length === 0) {
+    console.error('[ORDER-SERVICE] Error: El carrito esta vacio.');
     throw new Error('El carrito está vacío.');
   }
 
   // 2. Validate stock for all items
+  console.log('[ORDER-SERVICE] Validando stock para todos los items...');
   for (const item of items) {
+    console.log(`[ORDER-SERVICE] Item: ${item.name} (Variant ID: ${item.variant_id}). Stock actual: ${item.stock}, Cantidad solicitada: ${item.quantity}`);
     if (item.stock < item.quantity) {
+      console.error(`[ORDER-SERVICE] Error: Stock insuficiente para "${item.name}". Stock: ${item.stock}, Solicitado: ${item.quantity}`);
       throw new Error(`Stock insuficiente para el producto "${item.name}". Solo quedan ${item.stock} unidades.`);
     }
   }
@@ -105,9 +114,12 @@ async function createOrderFromCart({ userId, address, payment_method, promo_code
   let addressId;
   if (address.id) {
     addressId = address.id;
+    console.log(`[ORDER-SERVICE] Usando ID de direccion existente: ${addressId}`);
   } else {
     const { address_line1, city, state, postal_code, country, phone } = address;
+    console.log(`[ORDER-SERVICE] Creando nueva direccion de envio para usuario ID: ${userId}...`);
     if (!address_line1 || !city || !state || !postal_code || !country) {
+      console.error('[ORDER-SERVICE] Error: Campos de direccion incompletos.');
       throw new Error('Complete todos los campos obligatorios de la dirección.');
     }
 
@@ -117,16 +129,19 @@ async function createOrderFromCart({ userId, address, payment_method, promo_code
       [userId, address_line1, address.address_line2 || '', city, state, postal_code, country, phone || '']
     );
     addressId = addrResult.rows[0].id;
+    console.log(`[ORDER-SERVICE] Nueva direccion registrada exitosamente. ID: ${addressId}`);
   }
 
   // 4. Insert Order Log
   const orderNumber = `CV-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+  console.log(`[ORDER-SERVICE] Generando orden de compra ${orderNumber} para insercion en DB...`);
   const orderRes = await db.query(
     `INSERT INTO orders (user_id, order_number, status, subtotal, shipping_cost, total, address_id, payment_status, payment_method, promotion_id, mp_payment_id, shipping_method)
      VALUES ($1, $2, 'PENDING', $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
     [userId, orderNumber, subtotal, shipping, total, addressId, payment_status, payment_method, promotionId, mp_payment_id, shipping_method]
   );
   const order = orderRes.rows[0];
+  console.log(`[ORDER-SERVICE] Orden de compra registrada con éxito en la DB. ID de Orden: ${order.id}`);
 
   // 5. Create Order Items & Decrement Variant Stock
   for (const item of items) {
