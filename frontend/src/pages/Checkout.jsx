@@ -375,8 +375,8 @@ export default function Checkout() {
             {shippingMethod === 'pickup' && (
               <div className="bg-neutral-light border border-neutral-light/50 p-4 rounded text-[11px] leading-relaxed text-primary/80">
                 <p className="font-semibold text-primary mb-1">📍 Dirección de recojo:</p>
-                <p>Av. Primavera 120, Oficina 402, Chacarilla, Santiago de Surco, Lima.</p>
-                <p className="mt-2 font-medium">Horario de atención: Lunes a Viernes de 9:00 am a 6:00 pm. Coordinar previamente.</p>
+                <p>Recojo disponible en Santiago de Surco, la ubicación exacta será enviada por WhatsApp una vez confirmado el pedido.</p>
+                <p className="mt-2 font-medium">Horario: Previa coordinación.</p>
               </div>
             )}
 

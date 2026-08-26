@@ -27,20 +27,20 @@ export default function Home() {
       name: 'Scrubs Completos', 
       slug: 'scrubs-completos', 
       tag: 'Kits Pro',
-      img: 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=600&q=80' 
+      img: '/scrubs-completos.jpg' 
     },
     { 
       name: 'Accesorios', 
       slug: 'tops', 
       tag: 'Diseño Ergonómico',
-      img: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80' 
+      img: '/accesorios.jpg' 
     },
     
     { 
       name: 'Enterizos', 
       slug: 'batas-y-chaquetas', 
       tag: 'Corte Sastre',
-      img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80' 
+      img: '/enterizos.jpg' 
     }
   ];
 
@@ -193,7 +193,7 @@ export default function Home() {
           <div className="space-y-4">
             <div className="aspect-[3/4] bg-white rounded-3xl overflow-hidden shadow-md border border-neutral-light">
               <img 
-                src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80" 
+                src="/empaque.jpg" 
                 alt="caVani Top Feature" 
                 className="w-full h-full object-cover"
               />
@@ -201,7 +201,7 @@ export default function Home() {
             <div className="bg-primary text-white p-6 rounded-3xl space-y-2">
               <span className="text-xl font-bold text-steel-light font-serif">100%</span>
               <p className="text-[11px] font-light leading-relaxed text-neutral-dark">
-                Probado en guardias intensivas con aprobación médica certificada.
+                Made for those who care.
               </p>
             </div>
           </div>
@@ -209,7 +209,7 @@ export default function Home() {
           <div className="space-y-4 pt-8">
             <div className="aspect-[3/4] bg-white rounded-3xl overflow-hidden shadow-md border border-neutral-light">
               <img 
-                src="https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80" 
+                src="/bolsa-regalo.jpg" 
                 alt="caVani Jogger Pant" 
                 className="w-full h-full object-cover"
               />

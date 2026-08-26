@@ -80,7 +80,7 @@
 }
 
 /* BrandLogo Responsiveness Stages */
-@media (max-width: 500px) {
+@media (max-width: 300px) {
   /* Stage 1: Hide C A and A N I, leaving only V and the badge next to it */
   .logo-text-side {
     display: none !important;

@@ -60,11 +60,11 @@ Y la forma de vestirla también.
       </div>
 
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between pt-8 text-[10px] text-neutral-dark font-light">
-        <p>&copy; {new Date().getFullYear()} caVani Medical. Todos los derechos reservados.</p>
+        <p>&copy; {new Date().getFullYear()} caVani Medwear. Todos los derechos reservados.</p>
         <div className="flex space-x-6 mt-4 md:mt-0">
-          <a href="#" className="hover:text-white transition-colors">Instagram</a>
-          <a href="#" className="hover:text-white transition-colors">Facebook</a>
-          <a href="#" className="hover:text-white transition-colors">LinkedIn</a>
+          <a href="https://www.instagram.com/cavani.medwear/" className="hover:text-white transition-colors">Instagram</a>
+          {/*<a href="#" className="hover:text-white transition-colors">Facebook</a>
+          <a href="#" className="hover:text-white transition-colors">LinkedIn</a> */}
         </div>
       </div>
     </footer>
