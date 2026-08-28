@@ -193,7 +193,7 @@ export default function Auth() {
 
           {/* Quick accounts details for demo evaluation */}
           <div className="border-t border-neutral-light pt-6 text-[10px] text-primary/60 text-center font-light leading-relaxed">
-            <span className="font-semibold block mb-1">Cuentas de Prueba para Evaluación:</span>
+            
             <div className="flex flex-col space-y-1">
               {/* cuentas */}
             </div>
