@@ -139,7 +139,7 @@ export default function Cart() {
             <div className="space-y-4 text-xs font-light text-primary/80">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span className="font-semibold text-primary">${subtotal.toFixed(2)}</span>
+                <span className="font-semibold text-primary">S/{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Costo de Envío</span>
@@ -147,7 +147,7 @@ export default function Cart() {
                   {shipping === 0 ? 'Gratis' : `S/${shipping.toFixed(2)}`}
                 </span>
               </div>
-              {subtotal < 150 && (
+              {subtotal < 250 && (
                 <p className="text-[10px] text-steel italic">
                   * Agrega S/{(250 - subtotal).toFixed(2)} más para obtener envío gratuito.
                 </p>
