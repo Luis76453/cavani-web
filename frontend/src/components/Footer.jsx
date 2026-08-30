@@ -23,7 +23,7 @@ Y la forma de vestirla también.
           <h4 className="font-semibold tracking-wider text-xs uppercase text-steel-light">Explorar</h4>
           <ul className="space-y-2 text-xs font-light text-neutral-dark">
             <li><Link to="/catalog" className="hover:text-white transition-colors">Todos los Productos</Link></li>
-            <li><Link to="/catalog?category=scrubs" className="hover:text-white transition-colors">Scrubs Premium</Link></li>
+            <li><Link to="/catalog?category=scrubs-completos" className="hover:text-white transition-colors">Scrubs Premium</Link></li>
             <li><Link to="/catalog?category=accesorios" className="hover:text-white transition-colors">Accesorios</Link></li>
             <li><Link to="/catalog?category=enterizos" className="hover:text-white transition-colors">Enterizos</Link></li>
           </ul>
