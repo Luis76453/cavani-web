@@ -73,19 +73,19 @@ export default function Auth() {
       <div className="hidden lg:relative lg:flex bg-primary items-center justify-center overflow-hidden">
         <div className="absolute inset-0 opacity-40">
           <img 
-            src="https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=1000&q=80" 
+            src="/auth.jpg" 
             alt="caVani Campaign"
             className="w-full h-full object-cover"
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-tr from-primary via-primary/50 to-transparent"></div>
         <div className="relative text-white max-w-md p-8 space-y-6 z-10">
-          <span className="text-[10px] tracking-[0.3em] font-semibold uppercase text-steel-light">caVani Medical</span>
+          <span className="text-[10px] tracking-[0.3em] font-semibold uppercase text-steel-light">caVani MedWear</span>
           <h2 className="font-serif text-4xl font-light leading-snug">
             Eleva tu apariencia profesional.
           </h2>
           <p className="text-xs font-light text-neutral-dark/80 leading-relaxed">
-            Crea una cuenta para guardar tus scrubs favoritos, gestionar tus direcciones de entrega y realizar un seguimiento detallado de tus pedidos.
+            Crea una cuenta para guardar tus scrubs, enterizos y accesorios favoritos, consultar tus pedidos y disfrutar de una experiencia de compra más cómoda.
           </p>
         </div>
       </div>

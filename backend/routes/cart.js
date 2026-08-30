@@ -312,4 +312,44 @@ router.delete('/items/:id', async (req, res) => {
   }
 });
 
+// GET /api/cart/validate-coupon - Validate a coupon code dynamically
+router.get('/validate-coupon', async (req, res) => {
+  const { code } = req.query;
+
+  if (!code) {
+    return res.status(400).json({ message: 'El código del cupón es requerido.' });
+  }
+
+  try {
+    const cleanCode = code.toUpperCase().trim();
+    // Query database for the active coupon with valid dates
+    const result = await db.query(
+      `SELECT id, code, discount_type, discount_value, description 
+       FROM promotions 
+       WHERE code = $1 AND active = true 
+         AND (start_date IS NULL OR start_date <= NOW()) 
+         AND (end_date IS NULL OR end_date >= NOW())`,
+      [cleanCode]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Cupón inválido o expirado.' });
+    }
+
+    const promo = result.rows[0];
+    res.json({
+      valid: true,
+      coupon: {
+        code: promo.code,
+        discount_type: promo.discount_type,
+        discount_value: parseFloat(promo.discount_value),
+        description: promo.description
+      }
+    });
+  } catch (err) {
+    console.error('Error validating coupon:', err);
+    res.status(500).json({ message: 'Error interno del servidor al validar el cupón.' });
+  }
+});
+
 module.exports = router;

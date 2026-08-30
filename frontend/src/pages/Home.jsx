@@ -31,14 +31,14 @@ export default function Home() {
     },
     { 
       name: 'Accesorios', 
-      slug: 'tops', 
+      slug: 'accesorios', 
       tag: 'Diseño Ergonómico',
       img: '/accesorios.jpg' 
     },
     
     { 
       name: 'Enterizos', 
-      slug: 'batas-y-chaquetas', 
+      slug: 'enterizos', 
       tag: 'Corte Sastre',
       img: '/enterizos.jpg' 
     }

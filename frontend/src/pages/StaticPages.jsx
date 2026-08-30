@@ -11,7 +11,7 @@ export function Nosotros() {
       
       <div className="relative aspect-[16/9] w-full bg-neutral-light rounded-lg overflow-hidden">
         <img 
-          src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=1200&q=80" 
+          src="/nosotros.jpg" 
           alt="caVani Team"
           className="w-full h-full object-cover"
         />
@@ -123,7 +123,7 @@ export function Terminos() {
       <h1 className="font-serif text-3xl font-light text-primary border-b border-neutral-light pb-4">Términos y Condiciones</h1>
       <div className="text-xs text-primary/80 font-light leading-relaxed space-y-4">
         <p>Este documento regula el acceso y uso de este sitio web. Al navegar en el sitio y realizar transacciones comerciales, usted acepta someterse a estas políticas.</p>
-        <p>La marca caVani, sus logotipos, fotografías editoriales y diseños textiles son propiedad exclusiva de caVani Medical. Está prohibida cualquier reproducción no autorizada.</p>
+        <p>La marca caVani, sus logotipos, fotografías editoriales y diseños textiles son propiedad exclusiva de caVani Medwear. Está prohibida cualquier reproducción no autorizada.</p>
       </div>
     </div>
   );

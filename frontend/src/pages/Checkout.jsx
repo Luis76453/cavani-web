@@ -105,17 +105,30 @@ export default function Checkout() {
     if (!promoCode.trim()) return;
 
     try {
-      if (promoCode.toUpperCase().trim() === 'WELCOME10') {
-        const val = subtotal * 0.10;
+      const res = await api.get('/cart/validate-coupon', {
+        params: { code: promoCode }
+      });
+
+      if (res.data.valid && res.data.coupon) {
+        const { code, discount_type, discount_value } = res.data.coupon;
+        let val = 0;
+        if (discount_type === 'percentage') {
+          val = subtotal * (discount_value / 100);
+        } else if (discount_type === 'fixed') {
+          val = discount_value;
+        }
+
         setDiscount(val);
-        setAppliedPromo('WELCOME10');
+        setAppliedPromo(code);
       } else {
         setErrorMessage('Cupón inválido o expirado.');
         setDiscount(0);
         setAppliedPromo(null);
       }
     } catch (err) {
-      setErrorMessage('Error al aplicar el cupón.');
+      setErrorMessage(err.response?.data?.message || 'Cupón inválido o expirado.');
+      setDiscount(0);
+      setAppliedPromo(null);
     }
   };
 
