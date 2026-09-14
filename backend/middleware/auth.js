@@ -17,6 +17,25 @@ function authenticateToken(req, res, next) {
   });
 }
 
+function optionalAuthenticate(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || 'cavani_editorial_medical_secret_2026_jwt', (err, user) => {
+    if (err) {
+      req.user = null;
+    } else {
+      req.user = user;
+    }
+    next();
+  });
+}
+
 function requireAdmin(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ message: 'Unauthorized' });
@@ -31,5 +50,6 @@ function requireAdmin(req, res, next) {
 
 module.exports = {
   authenticateToken,
+  optionalAuthenticate,
   requireAdmin
 };

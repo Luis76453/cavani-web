@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
 const getWhatsAppLink = (order) => {
@@ -21,16 +22,12 @@ const getWhatsAppLink = (order) => {
 export default function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
   const { fetchCart } = useCart();
+  const { user } = useAuth();
   const paymentId = searchParams.get('payment_id');
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeoutReached, setTimeoutReached] = useState(false);
-
-  useEffect(() => {
-    // Clear checkout cart upon successful payment to prevent duplicate orders
-    fetchCart();
-  }, [fetchCart]);
 
   useEffect(() => {
     if (!paymentId) {
@@ -47,6 +44,10 @@ export default function CheckoutSuccess() {
         const res = await api.get(`/orders/payment/${paymentId}`);
         setOrder(res.data.order);
         setLoading(false);
+        // Clear temporal guest info and session storage ONLY upon verified successful payment
+        localStorage.removeItem('cavani_guest_info');
+        localStorage.removeItem('cavani_session_id');
+        fetchCart();
       } catch (err) {
         if (err.response?.status === 404 && retries < maxRetries) {
           retries++;
@@ -62,7 +63,9 @@ export default function CheckoutSuccess() {
 
     checkOrder();
     return () => clearTimeout(timer);
-  }, [paymentId]);
+  }, [paymentId, fetchCart]);
+
+  const isGuestOrder = !user || order?.is_guest;
 
   return (
     <div className="max-w-md mx-auto py-40 px-6 text-center space-y-6">
@@ -86,6 +89,7 @@ export default function CheckoutSuccess() {
         <div className="bg-neutral-light p-6 rounded-lg text-left text-xs space-y-2 border border-neutral-light/50 shadow-sm">
           <div><span className="font-semibold text-primary">Número de Pedido:</span> {order.order_number}</div>
           <div><span className="font-semibold text-primary">Total Facturado:</span> S/{parseFloat(order.total).toFixed(2)}</div>
+          {order.guest_email && <div><span className="font-semibold text-primary">Comprobante enviado a:</span> {order.guest_email}</div>}
           <div>
             <span className="font-semibold text-primary">Envío:</span>{' '}
             {order.shipping_method === 'pickup' ? '📍 Recojo en dirección' :
@@ -119,7 +123,7 @@ export default function CheckoutSuccess() {
             {order ? (
               order.shipping_method === 'pickup' ? 'Por favor coordina el día y hora para recoger tu producto en nuestra oficina.' :
               order.shipping_method === 'provincia' ? 'Por favor coordina el costo y detalles de envío por pagar a provincia.' :
-              'Tu pedido se enviará a tu dirección registrada en Lima & Callao.'
+              `Tu pedido se enviará a tu dirección registrada. Nos comunicaremos vía WhatsApp para coordinar el motorizado.`
             ) : (
               '¿Deseas contactarnos para coordinar tu entrega o resolver alguna duda?'
             )}
@@ -139,11 +143,13 @@ export default function CheckoutSuccess() {
       )}
 
       <div className="pt-4 flex flex-col gap-3">
-        <Link to="/profile" className="bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors block">
-          Ver Mis Pedidos
-        </Link>
-        <Link to="/" className="text-[10px] uppercase font-bold tracking-widest text-steel hover:underline block">
-          Volver al Inicio
+        {!isGuestOrder && (
+          <Link to="/profile" className="bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors block">
+            Ver Mis Pedidos
+          </Link>
+        )}
+        <Link to="/catalog" className={`text-xs font-bold uppercase tracking-widest py-4 rounded transition-colors block ${isGuestOrder ? 'bg-primary text-white hover:bg-steel' : 'text-steel hover:underline'}`}>
+          Volver a la Tienda
         </Link>
       </div>
     </div>

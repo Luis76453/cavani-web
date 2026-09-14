@@ -4,9 +4,17 @@ const db = require('../config/db');
  * Recalculates cart pricing on the server side using values directly from the database.
  * Never trust prices passed from the frontend.
  */
-async function calculateCartTotal(userId, promo_code, shipping_method = 'delivery_lima') {
-  // 1. Get user cart
-  const cartRes = await db.query('SELECT id FROM carts WHERE user_id = $1', [userId]);
+async function calculateCartTotal(userId, promo_code, shipping_method = 'delivery_lima', sessionId = null) {
+  // 1. Get user or guest cart
+  let cartRes;
+  if (userId) {
+    cartRes = await db.query('SELECT id FROM carts WHERE user_id = $1', [userId]);
+  } else if (sessionId) {
+    cartRes = await db.query('SELECT id FROM carts WHERE session_id = $1', [sessionId]);
+  } else {
+    return { subtotal: 0, discount: 0, shipping: 0, total: 0, items: [], promotionId: null, cartId: null };
+  }
+
   if (cartRes.rows.length === 0) {
     return { subtotal: 0, discount: 0, shipping: 0, total: 0, items: [], promotionId: null, cartId: null };
   }
@@ -80,10 +88,10 @@ async function calculateCartTotal(userId, promo_code, shipping_method = 'deliver
 }
 
 /**
- * Creates a physical order from the current items in the user's cart.
+ * Creates a physical order from the current items in the user's or guest's cart.
  */
-async function createOrderFromCart({ userId, address, payment_method, promo_code, shipping_method = 'delivery_lima', payment_status = 'PENDING', mp_payment_id = null }) {
-  console.log(`[ORDER-SERVICE] Iniciando createOrderFromCart para usuario ID: ${userId}. Metodo Pago: ${payment_method}, Estado Pago: ${payment_status}, MP Payment ID: ${mp_payment_id}`);
+async function createOrderFromCart({ userId = null, guestInfo = null, sessionId = null, address, payment_method, promo_code, shipping_method = 'delivery_lima', payment_status = 'PENDING', mp_payment_id = null }) {
+  console.log(`[ORDER-SERVICE] Iniciando createOrderFromCart. Usuario ID: ${userId || 'GUEST'}, Session ID: ${sessionId || 'N/A'}. Metodo Pago: ${payment_method}, Estado Pago: ${payment_status}, MP Payment ID: ${mp_payment_id}`);
   
   if (!address || !payment_method) {
     console.error('[ORDER-SERVICE] Error: Direccion o Metodo de Pago faltante.');
@@ -92,7 +100,7 @@ async function createOrderFromCart({ userId, address, payment_method, promo_code
 
   // 1. Recalculate totals and get items from DB
   console.log('[ORDER-SERVICE] Calculando totales del carrito en la base de datos...');
-  const { subtotal, discount, shipping, total, items, promotionId, cartId } = await calculateCartTotal(userId, promo_code, shipping_method);
+  const { subtotal, discount, shipping, total, items, promotionId, cartId } = await calculateCartTotal(userId, promo_code, shipping_method, sessionId);
   console.log(`[ORDER-SERVICE] Totales recalculados: Subtotal: ${subtotal}, Descuento: ${discount}, Envio: ${shipping}, Total: ${total}. Items count: ${items.length}`);
 
   if (items.length === 0) {
@@ -110,15 +118,28 @@ async function createOrderFromCart({ userId, address, payment_method, promo_code
     }
   }
 
+  // Extract snapshot & guest variables
+  const guestEmail = guestInfo?.email || guestInfo?.guest_email || address?.email || null;
+  const guestFirstName = guestInfo?.firstName || guestInfo?.first_name || address?.firstName || address?.first_name || null;
+  const guestLastName = guestInfo?.lastName || guestInfo?.last_name || address?.lastName || address?.last_name || null;
+  const guestPhone = guestInfo?.phone || guestInfo?.guest_phone || address?.phone || null;
+
+  const shipLine1 = address?.address_line1 || '';
+  const shipLine2 = address?.address_line2 || '';
+  const shipCity = address?.city || '';
+  const shipState = address?.state || '';
+  const shipPostalCode = address?.postal_code || '';
+  const shipCountry = address?.country || 'Perú';
+  const shipReference = address?.reference || address?.address_line2 || '';
+
   // 3. Save or load delivery Address
   let addressId;
   if (address.id) {
     addressId = address.id;
     console.log(`[ORDER-SERVICE] Usando ID de direccion existente: ${addressId}`);
   } else {
-    const { address_line1, city, state, postal_code, country, phone } = address;
-    console.log(`[ORDER-SERVICE] Creando nueva direccion de envio para usuario ID: ${userId}...`);
-    if (!address_line1 || !city || !state || !postal_code || !country) {
+    console.log(`[ORDER-SERVICE] Creando nueva direccion de envio en DB...`);
+    if (!shipLine1 || !shipCity || !shipState || !shipPostalCode) {
       console.error('[ORDER-SERVICE] Error: Campos de direccion incompletos.');
       throw new Error('Complete todos los campos obligatorios de la dirección.');
     }
@@ -126,19 +147,31 @@ async function createOrderFromCart({ userId, address, payment_method, promo_code
     const addrResult = await db.query(
       `INSERT INTO addresses (user_id, address_line1, address_line2, city, state, postal_code, country, phone)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [userId, address_line1, address.address_line2 || '', city, state, postal_code, country, phone || '']
+      [userId, shipLine1, shipLine2, shipCity, shipState, shipPostalCode, shipCountry, guestPhone || address.phone || '']
     );
     addressId = addrResult.rows[0].id;
     console.log(`[ORDER-SERVICE] Nueva direccion registrada exitosamente. ID: ${addressId}`);
   }
 
-  // 4. Insert Order Log
+  // 4. Insert Order Log with Snapshot columns
   const orderNumber = `CV-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-  console.log(`[ORDER-SERVICE] Generando orden de compra ${orderNumber} para insercion en DB...`);
+  console.log(`[ORDER-SERVICE] Generando orden de compra ${orderNumber} con snapshot para insercion en DB...`);
   const orderRes = await db.query(
-    `INSERT INTO orders (user_id, order_number, status, subtotal, shipping_cost, total, address_id, payment_status, payment_method, promotion_id, mp_payment_id, shipping_method)
-     VALUES ($1, $2, 'PENDING', $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-    [userId, orderNumber, subtotal, shipping, total, addressId, payment_status, payment_method, promotionId, mp_payment_id, shipping_method]
+    `INSERT INTO orders (
+      user_id, order_number, status, subtotal, shipping_cost, total, address_id, 
+      payment_status, payment_method, promotion_id, mp_payment_id, shipping_method,
+      guest_email, guest_first_name, guest_last_name, guest_phone,
+      shipping_address_line1, shipping_address_line2, shipping_city, shipping_state,
+      shipping_postal_code, shipping_country, shipping_reference
+     )
+     VALUES ($1, $2, 'PENDING', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
+    [
+      userId, orderNumber, subtotal, shipping, total, addressId,
+      payment_status, payment_method, promotionId, mp_payment_id, shipping_method,
+      guestEmail, guestFirstName, guestLastName, guestPhone,
+      shipLine1, shipLine2, shipCity, shipState,
+      shipPostalCode, shipCountry, shipReference
+    ]
   );
   const order = orderRes.rows[0];
   console.log(`[ORDER-SERVICE] Orden de compra registrada con éxito en la DB. ID de Orden: ${order.id}`);
@@ -152,15 +185,19 @@ async function createOrderFromCart({ userId, address, payment_method, promo_code
       [order.id, item.variant_id, item.quantity, item.price]
     );
 
-    // Decrement stock
-    await db.query(
-      `UPDATE product_variants SET stock = stock - $1 WHERE id = $2`,
-      [item.quantity, item.variant_id]
-    );
+    // Decrement stock only if order is finalized or paid immediately
+    if (payment_status !== 'PENDING') {
+      await db.query(
+        `UPDATE product_variants SET stock = stock - $1 WHERE id = $2`,
+        [item.quantity, item.variant_id]
+      );
+    }
   }
 
-  // 6. Clear User Cart
-  await db.query(`DELETE FROM cart_items WHERE cart_id = $1`, [cartId]);
+  // 6. Clear User or Guest Cart ONLY when payment is finalized (not on PENDING preferences)
+  if (cartId && payment_status !== 'PENDING') {
+    await db.query(`DELETE FROM cart_items WHERE cart_id = $1`, [cartId]);
+  }
 
   return {
     id: order.id,

@@ -1,18 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, optionalAuthenticate } = require('../middleware/auth');
+const { sendOrderConfirmationEmail } = require('../services/emailService');
 
 const { createOrderFromCart } = require('../services/orderService');
 
-// POST /api/orders - Place a new order
-router.post('/', authenticateToken, async (req, res) => {
-  const { address, payment_method, promo_code, shipping_method } = req.body;
-  const userId = req.user.id;
+// POST /api/orders - Place a new order (Supports both logged-in users and guest checkout)
+router.post('/', optionalAuthenticate, async (req, res) => {
+  const { address, payment_method, promo_code, shipping_method, guestInfo, session_id } = req.body;
+  const userId = req.user ? req.user.id : null;
 
   try {
     const order = await createOrderFromCart({
       userId,
+      guestInfo,
+      sessionId: session_id,
       address,
       payment_method,
       promo_code,
@@ -95,16 +98,28 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/orders/payment/:paymentId - Fetch order metadata by payment_id
-router.get('/payment/:paymentId', authenticateToken, async (req, res) => {
+// GET /api/orders/payment/:paymentId - Fetch order metadata by payment_id (Supports both logged-in users and guests)
+router.get('/payment/:paymentId', optionalAuthenticate, async (req, res) => {
   const { paymentId } = req.params;
+  const userId = req.user ? req.user.id : null;
   try {
-    const result = await db.query(
-      `SELECT o.id, o.order_number, o.total, o.shipping_method, o.status
-       FROM orders o
-       WHERE o.mp_payment_id = $1 AND o.user_id = $2`,
-      [paymentId, req.user.id]
-    );
+    let result;
+    if (userId) {
+      result = await db.query(
+        `SELECT o.id, o.order_number, o.total, o.shipping_method, o.status, o.guest_email
+         FROM orders o
+         WHERE o.mp_payment_id = $1 AND o.user_id = $2`,
+        [paymentId, userId]
+      );
+    } else {
+      result = await db.query(
+        `SELECT o.id, o.order_number, o.total, o.shipping_method, o.status, o.guest_email
+         FROM orders o
+         WHERE o.mp_payment_id = $1`,
+        [paymentId]
+      );
+    }
+
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Pedido no encontrado.' });
     }

@@ -20,13 +20,6 @@ export default function Profile() {
     });
   }, [activeTab, selectedOrder]);
 
-  // Redirect if guest
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/auth');
-    }
-  }, [isAuthenticated, authLoading, navigate]);
-
   // Load orders history
   useEffect(() => {
     const loadOrders = async () => {
@@ -58,7 +51,24 @@ export default function Profile() {
     return <div className="py-40 text-center text-xs">Cargando perfil de usuario...</div>;
   }
 
-  if (!user) return null;
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="max-w-md mx-auto py-48 px-6 text-center space-y-6">
+        <h2 className="font-serif text-2xl font-light text-primary">Mi Cuenta</h2>
+        <p className="text-xs text-primary/70 leading-relaxed">
+          Para ver tu historial de pedidos y gestionar tus datos guardados, inicia sesión o crea una cuenta.
+        </p>
+        <div className="pt-2 flex flex-col gap-3">
+          <Link to="/auth" className="bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors block">
+            Iniciar Sesión / Registrarse
+          </Link>
+          <Link to="/catalog" className="text-[10px] uppercase font-bold tracking-widest text-steel hover:underline block">
+            Volver a la Tienda
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-32">

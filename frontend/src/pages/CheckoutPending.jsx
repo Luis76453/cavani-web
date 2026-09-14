@@ -1,16 +1,20 @@
 import React, { useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function CheckoutPending() {
   const [searchParams] = useSearchParams();
   const { fetchCart } = useCart();
+  const { user } = useAuth();
   const paymentId = searchParams.get('payment_id');
 
   useEffect(() => {
     // Clear cart upon pending checkout to avoid double-charging
     fetchCart();
   }, [fetchCart]);
+
+  const isGuest = !user;
 
   return (
     <div className="max-w-md mx-auto py-40 px-6 text-center space-y-6">
@@ -31,11 +35,13 @@ export default function CheckoutPending() {
         </div>
       )}
       <div className="pt-4 flex flex-col gap-3">
-        <Link to="/profile" className="bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors block">
-          Ver Mis Pedidos
-        </Link>
-        <Link to="/" className="text-[10px] uppercase font-bold tracking-widest text-steel hover:underline block">
-          Volver al Inicio
+        {!isGuest && (
+          <Link to="/profile" className="bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors block">
+            Ver Mis Pedidos
+          </Link>
+        )}
+        <Link to="/catalog" className={`text-xs font-bold uppercase tracking-widest py-4 rounded transition-colors block ${isGuest ? 'bg-primary text-white hover:bg-steel' : 'text-steel hover:underline'}`}>
+          Volver a la Tienda
         </Link>
       </div>
     </div>

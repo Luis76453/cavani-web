@@ -27,16 +27,48 @@ const getWhatsAppLink = (order) => {
 };
 
 export default function Checkout() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
-  const { cartItems, getSubtotal, fetchCart, loading:cartLoading } = useCart();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { cartItems, getSubtotal, fetchCart, loading: cartLoading } = useCart();
   const navigate = useNavigate();
 
-  // Redirect if guest
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/auth?redirect=checkout');
+  // Mode: 'guest' or 'user'
+  const [checkoutMode, setCheckoutMode] = useState('guest');
+
+  // Guest Information state (temporarily stored in localStorage, cleared upon success)
+  const [guestInfo, setGuestInfo] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cavani_guest_info');
+      return saved ? JSON.parse(saved) : {
+        guest_first_name: '',
+        guest_last_name: '',
+        doc_type: 'DNI',
+        doc_number: '',
+        guest_email: '',
+        guest_phone: ''
+      };
+    } catch {
+      return {
+        guest_first_name: '',
+        guest_last_name: '',
+        doc_type: 'DNI',
+        doc_number: '',
+        guest_email: '',
+        guest_phone: ''
+      };
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  });
+
+  // Save guestInfo to localStorage for persistence while typing/reloading
+  useEffect(() => {
+    if (!isAuthenticated) {
+      localStorage.setItem('cavani_guest_info', JSON.stringify(guestInfo));
+    }
+  }, [guestInfo, isAuthenticated]);
+
+  const handleGuestInputChange = (e) => {
+    const { name, value } = e.target;
+    setGuestInfo(prev => ({ ...prev, [name]: value }));
+  };
 
   // Pricing
   const subtotal = getSubtotal();
@@ -66,10 +98,11 @@ export default function Checkout() {
     state: '',
     postal_code: '',
     country: 'Perú',
-    phone: ''
+    phone: '',
+    reference: ''
   });
 
-  // Keep reference to address and promo state to avoid recreating the submit callback on every keystroke
+  // Keep reference to state
   const addressRef = useRef(address);
   const appliedPromoRef = useRef(appliedPromo);
 
@@ -89,15 +122,50 @@ export default function Checkout() {
   const [errorMessage, setErrorMessage] = useState('');
   const [orderConfirmed, setOrderConfirmed] = useState(null);
 
-  // Scroll to top when order is placed successfully
+  // Scroll to top when order is placed successfully and clear strictly temporal guest info
   useEffect(() => {
     if (orderConfirmed) {
       window.scrollTo({
         top: 0,
         behavior: 'smooth'
       });
+      // Clear temporal guest info and session upon success
+      localStorage.removeItem('cavani_guest_info');
+      localStorage.removeItem('cavani_session_id');
     }
   }, [orderConfirmed]);
+
+  // Validate guest information
+  const validateGuestInfo = () => {
+    if (isAuthenticated) return true;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!guestInfo.guest_first_name.trim() || !guestInfo.guest_last_name.trim()) {
+      setErrorMessage('Por favor ingrese sus nombres y apellidos completos.');
+      return false;
+    }
+    if (!guestInfo.doc_number.trim()) {
+      setErrorMessage('Por favor ingrese su número de documento (DNI o RUC).');
+      return false;
+    }
+    if (guestInfo.doc_type === 'DNI' && guestInfo.doc_number.trim().length !== 8) {
+      setErrorMessage('El DNI debe contener exactamente 8 dígitos.');
+      return false;
+    }
+    if (guestInfo.doc_type === 'RUC' && guestInfo.doc_number.trim().length !== 11) {
+      setErrorMessage('El RUC debe contener exactamente 11 dígitos.');
+      return false;
+    }
+    if (!guestInfo.guest_email.trim() || !emailRegex.test(guestInfo.guest_email.trim())) {
+      setErrorMessage('Por favor ingrese un correo electrónico válido.');
+      return false;
+    }
+    if (!guestInfo.guest_phone.trim() || guestInfo.guest_phone.trim().length < 7) {
+      setErrorMessage('Por favor ingrese un número de teléfono de contacto válido (mínimo 7 dígitos).');
+      return false;
+    }
+    return true;
+  };
 
   const applyPromo = async (e) => {
     e.preventDefault();
@@ -142,18 +210,21 @@ export default function Checkout() {
     e.preventDefault();
     setErrorMessage('');
 
-    // If credit card, the submit action is managed by the Mercado Pago onSubmit Brick handler,
-    // so we return immediately and avoid duplicate submission.
     if (paymentMethod === 'credit_card') {
       return;
     }
 
-    // Validate inputs based on shipping method
-    const { address_line1, city, state, postal_code, phone } = address;
-    let finalAddress = { ...address };
+    if (!validateGuestInfo()) {
+      return;
+    }
+
+    const contactPhone = isAuthenticated ? address.phone : (guestInfo.guest_phone || address.phone);
+    const contactEmail = isAuthenticated ? user?.email : guestInfo.guest_email.trim();
+    const { address_line1, city, state, postal_code, reference } = address;
+    let finalAddress = { ...address, phone: contactPhone, email: contactEmail };
 
     if (shippingMethod === 'pickup') {
-      if (!phone) {
+      if (!contactPhone) {
         setErrorMessage('Por favor complete su teléfono de contacto.');
         return;
       }
@@ -164,10 +235,12 @@ export default function Checkout() {
         state: 'Lima',
         postal_code: '15038',
         country: 'Perú',
-        phone
+        phone: contactPhone,
+        email: contactEmail,
+        reference: reference || ''
       };
     } else if (shippingMethod === 'provincia') {
-      if (!city || !state || !phone) {
+      if (!city || !state || !contactPhone) {
         setErrorMessage('Por favor complete la provincia, departamento y teléfono de contacto.');
         return;
       }
@@ -178,10 +251,12 @@ export default function Checkout() {
         state,
         postal_code: '00000',
         country: 'Perú',
-        phone
+        phone: contactPhone,
+        email: contactEmail,
+        reference: reference || ''
       };
     } else {
-      if (!address_line1 || !city || !state || !postal_code || !phone) {
+      if (!address_line1 || !city || !state || !postal_code || !contactPhone) {
         setErrorMessage('Por favor complete todos los campos de dirección requeridos.');
         return;
       }
@@ -189,14 +264,29 @@ export default function Checkout() {
 
     setIsSubmitting(true);
     try {
-      const res = await api.post('/orders', {
+      const sessionId = localStorage.getItem('cavani_session_id');
+      const guestPayloadData = !isAuthenticated ? {
+        email: guestInfo.guest_email.trim(),
+        firstName: guestInfo.guest_first_name.trim(),
+        lastName: guestInfo.guest_last_name.trim(),
+        phone: guestInfo.guest_phone.trim(),
+        docType: guestInfo.doc_type,
+        docNumber: guestInfo.doc_number.trim()
+      } : undefined;
+
+      const payload = {
         address: finalAddress,
         payment_method: paymentMethod,
         promo_code: appliedPromo,
-        shipping_method: shippingMethod
-      });
+        shipping_method: shippingMethod,
+        session_id: !isAuthenticated ? sessionId : undefined,
+        guestInfo: guestPayloadData,
+        guest_info: guestPayloadData
+      };
+
+      const res = await api.post('/orders', payload);
       setOrderConfirmed(res.data.order);
-      await fetchCart(); // Clear local/API cart items
+      await fetchCart();
     } catch (err) {
       console.error(err);
       setErrorMessage(err.response?.data?.message || 'Error al procesar su pedido. Intente nuevamente.');
@@ -207,13 +297,19 @@ export default function Checkout() {
 
   const handleMercadoPagoPayment = async () => {
     setErrorMessage('');
+
+    if (!validateGuestInfo()) {
+      return;
+    }
     
-    // Validate inputs based on shipping method
-    const { address_line1, city, state, postal_code, phone } = address;
-    let finalAddress = { ...address };
+    const contactPhone = isAuthenticated ? address.phone : (guestInfo.guest_phone || address.phone);
+    const contactEmail = isAuthenticated ? user?.email : guestInfo.guest_email.trim();
+    const { address_line1, city, state, postal_code, reference } = address;
+    
+    let finalAddress = { ...address, phone: contactPhone, email: contactEmail };
 
     if (shippingMethod === 'pickup') {
-      if (!phone) {
+      if (!contactPhone) {
         setErrorMessage('Por favor complete su teléfono de contacto antes de efectuar el pago.');
         return;
       }
@@ -224,10 +320,12 @@ export default function Checkout() {
         state: 'Lima',
         postal_code: '15038',
         country: 'Perú',
-        phone
+        phone: contactPhone,
+        email: contactEmail,
+        reference: reference || ''
       };
     } else if (shippingMethod === 'provincia') {
-      if (!city || !state || !phone) {
+      if (!city || !state || !contactPhone) {
         setErrorMessage('Por favor complete la provincia, departamento y teléfono antes de efectuar el pago.');
         return;
       }
@@ -238,10 +336,12 @@ export default function Checkout() {
         state,
         postal_code: '00000',
         country: 'Perú',
-        phone
+        phone: contactPhone,
+        email: contactEmail,
+        reference: reference || ''
       };
     } else {
-      if (!address_line1 || !city || !state || !postal_code || !phone) {
+      if (!address_line1 || !city || !state || !postal_code || !contactPhone) {
         setErrorMessage('Por favor complete todos los campos de dirección requeridos antes de efectuar el pago.');
         return;
       }
@@ -249,11 +349,26 @@ export default function Checkout() {
 
     setIsSubmitting(true);
     try {
-      const res = await api.post('/payments/create-preference', {
+      const sessionId = localStorage.getItem('cavani_session_id');
+      const guestPayloadData = !isAuthenticated ? {
+        email: guestInfo.guest_email.trim(),
+        firstName: guestInfo.guest_first_name.trim(),
+        lastName: guestInfo.guest_last_name.trim(),
+        phone: guestInfo.guest_phone.trim(),
+        docType: guestInfo.doc_type,
+        docNumber: guestInfo.doc_number.trim()
+      } : undefined;
+
+      const payload = {
         address: finalAddress,
         promo_code: appliedPromo,
-        shipping_method: shippingMethod
-      });
+        shipping_method: shippingMethod,
+        session_id: !isAuthenticated ? sessionId : undefined,
+        guestInfo: guestPayloadData,
+        guest_info: guestPayloadData
+      };
+
+      const res = await api.post('/payments/create-preference', payload);
       
       if (res.data && res.data.init_point) {
         window.location.href = res.data.init_point;
@@ -270,6 +385,7 @@ export default function Checkout() {
       setIsSubmitting(false);
     }
   };
+
   const total = Math.max(0, subtotal - discount + shipping);
 
   
@@ -279,6 +395,10 @@ export default function Checkout() {
   }
 
   if (orderConfirmed) {
+    const isGuestOrder = !isAuthenticated || orderConfirmed.is_guest;
+    const confirmEmail = orderConfirmed.guest_email || user?.email || guestInfo.guest_email;
+    const confirmPhone = orderConfirmed.guest_phone || orderConfirmed.shipping_address_phone || guestInfo.guest_phone;
+
     return (
       <div className="max-w-md mx-auto py-40 px-6 text-center space-y-6">
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
@@ -293,13 +413,16 @@ export default function Checkout() {
         <div className="bg-neutral-light p-6 rounded-lg text-left text-xs space-y-2 border border-neutral-light/50">
           <div><span className="font-semibold text-primary">Número de Pedido:</span> {orderConfirmed.order_number}</div>
           <div><span className="font-semibold text-primary">Total Facturado:</span> S/{parseFloat(orderConfirmed.total).toFixed(2)}</div>
+          {confirmEmail && <div><span className="font-semibold text-primary">Comprobante enviado a:</span> {confirmEmail}</div>}
           <div><span className="font-semibold text-primary">Estado:</span> {orderConfirmed.status}</div>
         </div>
         <div className="pt-4 flex flex-col gap-3">
-          <Link to="/profile" className="bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors block">
-            Ver Mis Pedidos
-          </Link>
-          <Link to="/catalog" className="text-[10px] uppercase font-bold tracking-widest text-steel hover:underline block">
+          {!isGuestOrder && (
+            <Link to="/profile" className="bg-primary text-white text-xs font-bold uppercase tracking-widest py-4 rounded hover:bg-steel transition-colors block">
+              Ver Mis Pedidos
+            </Link>
+          )}
+          <Link to="/catalog" className={`text-xs font-bold uppercase tracking-widest py-4 rounded transition-colors block ${isGuestOrder ? 'bg-primary text-white hover:bg-steel' : 'text-steel hover:underline'}`}>
             Volver a la Tienda
           </Link>
         </div>
@@ -312,7 +435,7 @@ export default function Checkout() {
           <p>
             {orderConfirmed.shipping_method === 'pickup' ? 'Por favor coordina el día y hora para recoger tu producto en nuestra oficina.' :
              orderConfirmed.shipping_method === 'provincia' ? 'Por favor coordina el costo y detalles de envío por pagar a provincia.' :
-             'Tu pedido se enviará a tu dirección registrada en Lima & Callao.'}
+             `Tu pedido se enviará a tu dirección registrada. Nos comunicaremos al ${confirmPhone || ''} vía WhatsApp para coordinar el motorizado.`}
           </p>
           <a 
             href={getWhatsAppLink(orderConfirmed)}
@@ -351,6 +474,113 @@ export default function Checkout() {
         {/* Left Columns: Forms */}
         <div className="lg:col-span-2 space-y-12">
           
+          {/* Guest vs User Mode Selector */}
+          {!isAuthenticated && (
+            <div className="bg-neutral-light/40 border border-neutral-light p-6 rounded-lg space-y-4">
+              <h2 className="font-serif text-lg font-medium text-primary">¿Cómo deseas comprar?</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setCheckoutMode('guest')}
+                  className={`p-4 border rounded-md text-xs font-semibold uppercase tracking-wider text-center transition-all ${checkoutMode === 'guest' ? 'border-primary bg-primary text-white' : 'border-neutral-dark/20 bg-white text-primary'}`}
+                >
+                  ⚡ Continuar como Invitado
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/auth?redirect=checkout')}
+                  className="p-4 border border-neutral-dark/20 bg-white text-primary rounded-md text-xs font-semibold uppercase tracking-wider text-center hover:bg-neutral-light transition-all flex items-center justify-center gap-2"
+                >
+                  <span>👤 Iniciar Sesión / Registrarse</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Guest Contact Information Form */}
+          {!isAuthenticated && checkoutMode === 'guest' && (
+            <div className="space-y-6 bg-white border border-neutral-light/50 p-8 rounded-lg shadow-sm">
+              <h2 className="font-serif text-xl font-medium text-primary border-b border-neutral-light pb-3">Datos del Cliente (Invitado)</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Nombres *</label>
+                  <input
+                    type="text"
+                    name="guest_first_name"
+                    required
+                    value={guestInfo.guest_first_name}
+                    onChange={handleGuestInputChange}
+                    placeholder="Ej. María"
+                    className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Apellidos *</label>
+                  <input
+                    type="text"
+                    name="guest_last_name"
+                    required
+                    value={guestInfo.guest_last_name}
+                    onChange={handleGuestInputChange}
+                    placeholder="Ej. López"
+                    className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Tipo de Documento *</label>
+                  <select
+                    name="doc_type"
+                    value={guestInfo.doc_type}
+                    onChange={handleGuestInputChange}
+                    className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  >
+                    <option value="DNI">DNI (Boleta)</option>
+                    <option value="RUC">RUC (Factura)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">
+                    Número de Documento ({guestInfo.doc_type === 'DNI' ? '8 dígitos' : '11 dígitos'}) *
+                  </label>
+                  <input
+                    type="text"
+                    name="doc_number"
+                    required
+                    maxLength={guestInfo.doc_type === 'DNI' ? 8 : 11}
+                    value={guestInfo.doc_number}
+                    onChange={handleGuestInputChange}
+                    placeholder={guestInfo.doc_type === 'DNI' ? '12345678' : '20123456789'}
+                    className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Correo Electrónico (Para recibir comprobante) *</label>
+                  <input
+                    type="email"
+                    name="guest_email"
+                    required
+                    value={guestInfo.guest_email}
+                    onChange={handleGuestInputChange}
+                    placeholder="ejemplo@correo.com"
+                    className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-primary/70 mb-2">Teléfono / WhatsApp *</label>
+                  <input
+                    type="tel"
+                    name="guest_phone"
+                    required
+                    value={guestInfo.guest_phone}
+                    onChange={handleGuestInputChange}
+                    placeholder="Ej. 987654321"
+                    className="w-full text-xs border border-neutral-dark/30 rounded px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Shipping Method Selector */}
           <div className="space-y-6 bg-white border border-neutral-light/50 p-8 rounded-lg shadow-sm">
             <h2 className="font-serif text-xl font-medium text-primary border-b border-neutral-light pb-3">Método de Envío</h2>
