@@ -97,12 +97,18 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// GET /api/admin/orders - Get all orders
+// GET /api/admin/orders - Get all orders (Lightweight summary for table listing)
 router.get('/orders', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT o.*, u.email as user_email, u.first_name, u.last_name,
-              a.address_line1, a.address_line2, a.city, a.state, a.postal_code, a.phone as shipping_phone
+      `SELECT o.id, o.user_id, o.order_number, o.status, o.subtotal, o.shipping_cost, o.total,
+              o.payment_status, o.payment_method, o.mp_payment_id, o.shipping_method,
+              o.guest_email, o.guest_first_name, o.guest_last_name, o.guest_phone,
+              o.shipping_city, o.shipping_state, o.shipping_address_line1,
+              o.created_at,
+              u.email as user_email, u.first_name as user_first_name, u.last_name as user_last_name,
+              a.address_line1 as addr_line1, a.city as addr_city, a.state as addr_state, a.phone as addr_phone,
+              (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as total_items
        FROM orders o
        LEFT JOIN users u ON o.user_id = u.id
        LEFT JOIN addresses a ON o.address_id = a.id
@@ -110,8 +116,65 @@ router.get('/orders', async (req, res) => {
     );
     res.json({ orders: result.rows });
   } catch (err) {
-    console.error(err);
+    console.error('Fetch admin orders list error:', err);
     res.status(500).json({ message: 'Error al obtener pedidos.' });
+  }
+});
+
+// GET /api/admin/orders/:id - Get complete order detail with product items and images (On-Demand / Lazy Loading)
+router.get('/orders/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // 1. Get complete order metadata
+    const orderRes = await db.query(
+      `SELECT o.*,
+              u.email as user_email, u.first_name as user_first_name, u.last_name as user_last_name, u.phone as user_phone,
+              a.address_line1 as db_address_line1, a.address_line2 as db_address_line2, 
+              a.city as db_city, a.state as db_state, a.postal_code as db_postal_code, 
+              a.country as db_country, a.phone as db_phone,
+              p.code as promo_code, p.discount_type as promo_discount_type, p.discount_value as promo_discount_value
+       FROM orders o
+       LEFT JOIN users u ON o.user_id = u.id
+       LEFT JOIN addresses a ON o.address_id = a.id
+       LEFT JOIN promotions p ON o.promotion_id = p.id
+       WHERE o.id = $1`,
+      [id]
+    );
+
+    if (orderRes.rows.length === 0) {
+      return res.status(404).json({ message: 'Pedido no encontrado.' });
+    }
+
+    const order = orderRes.rows[0];
+
+    // 2. Get order items with variant, product, and thumbnail details
+    const itemsRes = await db.query(
+      `SELECT oi.id, oi.quantity, oi.price, (oi.price * oi.quantity) as item_subtotal,
+              pv.sku, pv.stock as current_stock,
+              p.id as product_id, p.name as product_name, p.slug as product_slug,
+              c.name as color_name, c.hex_code as color_hex,
+              s.name as size_name,
+              COALESCE(
+                (SELECT image_url FROM product_images WHERE product_id = p.id AND color_id = pv.color_id LIMIT 1),
+                (SELECT image_url FROM product_images WHERE product_id = p.id AND is_featured = true LIMIT 1),
+                (SELECT image_url FROM product_images WHERE product_id = p.id LIMIT 1)
+              ) as image_url
+       FROM order_items oi
+       LEFT JOIN product_variants pv ON oi.variant_id = pv.id
+       LEFT JOIN products p ON pv.product_id = p.id
+       LEFT JOIN colors c ON pv.color_id = c.id
+       LEFT JOIN sizes s ON pv.size_id = s.id
+       WHERE oi.order_id = $1`,
+      [order.id]
+    );
+
+    order.items = itemsRes.rows;
+
+    res.json({ order });
+  } catch (err) {
+    console.error('Fetch admin order detail error:', err);
+    res.status(500).json({ message: 'Error al obtener el detalle del pedido.' });
   }
 });
 
