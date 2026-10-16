@@ -7,6 +7,7 @@ import { CartProvider } from './context/CartContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AdminSidebar from './components/AdminSidebar';
+import PromoModal from './components/PromoModal';
 
 // Public Pages
 import Home from './pages/Home';
@@ -54,6 +55,7 @@ function ShopLayout({ children }) {
         {children}
       </main>
       <Footer />
+      <PromoModal />
     </div>
   );
 }
