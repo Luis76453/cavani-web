@@ -70,7 +70,7 @@ export default function PromoModal() {
   const whatsappMessage = encodeURIComponent(
     'Hola caVani, deseo comprar la promoción del COMBO SCRUB CIELO + TERMO por S/ 169 (Mes de la Medicina).'
   );
-  const whatsappUrl = `https://wa.me/51941460237?text=${whatsappMessage}`;
+  const whatsappUrl = `https://wa.me/51941778744?text=${whatsappMessage}`;
 
   return (
     <>
