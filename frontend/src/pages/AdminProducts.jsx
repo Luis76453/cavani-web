@@ -15,6 +15,13 @@ export default function AdminProducts() {
   const [isSimpleForm, setIsSimpleForm] = useState(false);
   const [simpleStock, setSimpleStock] = useState(0);
   const [deletedVariantKeys, setDeletedVariantKeys] = useState(new Set());
+  const [simpleColorId, setSimpleColorId] = useState(null);
+  
+  // Quick Color Creation Modal State
+  const [showQuickColorModal, setShowQuickColorModal] = useState(false);
+  const [quickColorData, setQuickColorData] = useState({ name: '', hex_code: '#0A142F' });
+  const [quickColorError, setQuickColorError] = useState('');
+  const [quickColorSaving, setQuickColorSaving] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -77,6 +84,52 @@ export default function AdminProducts() {
     }
   };
 
+  const handleSaveQuickColor = async (e) => {
+    e?.preventDefault();
+    if (!quickColorData.name.trim()) {
+      setQuickColorError('Ingresa un nombre para el color.');
+      return;
+    }
+    setQuickColorError('');
+    setQuickColorSaving(true);
+
+    try {
+      let cleanHex = quickColorData.hex_code.trim().toUpperCase();
+      if (!cleanHex.startsWith('#')) cleanHex = '#' + cleanHex;
+
+      const res = await api.post('/admin/colors', {
+        name: quickColorData.name.trim(),
+        hex_code: cleanHex,
+        active: true
+      });
+      const newColor = res.data.color;
+
+      setDbColors(prev => {
+        if (prev.some(c => c.id === newColor.id)) return prev;
+        return [...prev, newColor];
+      });
+
+      if (isSimpleForm) {
+        setSimpleColorId(newColor.id);
+      } else {
+        setSelectedColors(prev => {
+          if (prev.includes(newColor.id)) return prev;
+          const updated = [...prev, newColor.id];
+          syncVariants(updated, selectedSizes);
+          return updated;
+        });
+      }
+
+      setShowQuickColorModal(false);
+      setQuickColorData({ name: '', hex_code: '#0A142F' });
+    } catch (err) {
+      console.error('Error saving quick color:', err);
+      setQuickColorError(err.response?.data?.message || 'Error al guardar el nuevo color.');
+    } finally {
+      setQuickColorSaving(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -100,6 +153,7 @@ export default function AdminProducts() {
     });
     setIsSimpleForm(false);
     setSimpleStock(0);
+    setSimpleColorId(null);
     setSelectedColors([]);
     setSelectedSizes([]);
     setProductVariants([]);
@@ -131,12 +185,14 @@ export default function AdminProducts() {
       });
 
       // Load relations to view inside modal form
-      const isSimple = (fullProduct.variants || []).some(v => v.color_id === null && v.size_id === null);
+      const isSimple = (fullProduct.variants || []).some(v => v.size_id === null);
       setIsSimpleForm(isSimple);
       if (isSimple && fullProduct.variants.length > 0) {
         setSimpleStock(fullProduct.variants[0].stock);
+        setSimpleColorId(fullProduct.variants[0].color_id || null);
       } else {
         setSimpleStock(0);
+        setSimpleColorId(null);
       }
 
       setProductVariants(fullProduct.variants || []);
@@ -366,9 +422,9 @@ export default function AdminProducts() {
       collection_id: formData.collection_id ? parseInt(formData.collection_id) : null,
       features: parsedFeatures,
       variants: isSimpleForm
-        ? [{ color_id: null, size_id: null, sku: formData.sku, stock: parseInt(simpleStock || 0) }]
+        ? [{ color_id: simpleColorId ? parseInt(simpleColorId) : null, size_id: null, sku: formData.sku, stock: parseInt(simpleStock || 0) }]
         : productVariants,
-      images: productImages.map(img => isSimpleForm ? { ...img, color_id: null } : img),
+      images: productImages.map(img => isSimpleForm ? { ...img, color_id: simpleColorId ? parseInt(simpleColorId) : null } : img),
       size_guide: isSimpleForm ? [] : productSizeGuide
     };
 
@@ -559,17 +615,75 @@ export default function AdminProducts() {
                   </select>
                 </div>
                 {isSimpleForm && (
-                  <div>
-                    <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-1.5">Stock Disponible *</label>
-                    <input
-                      type="number"
-                      required
-                      value={simpleStock}
-                      onChange={(e) => setSimpleStock(e.target.value)}
-                      className="w-full text-xs border border-neutral-dark/20 rounded px-3 py-2.5 bg-neutral-light/50 focus:outline-none"
-                      min="0"
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-1.5">Stock Disponible *</label>
+                      <input
+                        type="number"
+                        required
+                        value={simpleStock}
+                        onChange={(e) => setSimpleStock(e.target.value)}
+                        className="w-full text-xs border border-neutral-dark/20 rounded px-3 py-2.5 bg-neutral-light/50 focus:outline-none"
+                        min="0"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-2 pt-2 border-t border-neutral-light">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/65">
+                          Color del Producto (Opcional)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickColorData({ name: '', hex_code: '#0A142F' });
+                            setQuickColorError('');
+                            setShowQuickColorModal(true);
+                          }}
+                          className="inline-flex items-center space-x-1 text-[10px] font-bold uppercase tracking-wider text-steel hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                          </svg>
+                          <span>Agregar Color</span>
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <button
+                          type="button"
+                          onClick={() => setSimpleColorId(null)}
+                          className={`flex items-center space-x-1.5 border rounded-full px-3 py-1 text-[10px] transition-all cursor-pointer ${
+                            simpleColorId === null
+                              ? 'border-primary bg-primary text-white font-bold'
+                              : 'border-neutral-dark/20 bg-white text-primary/70 hover:border-primary'
+                          }`}
+                        >
+                          <span>Sin color específico</span>
+                        </button>
+                        {dbColors
+                          .filter(c => c.active || c.id === simpleColorId)
+                          .map(c => {
+                            const isSelected = simpleColorId === c.id;
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => setSimpleColorId(isSelected ? null : c.id)}
+                                className={`flex items-center space-x-2 border rounded-full px-3 py-1 text-[10px] transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'border-primary ring-2 ring-primary/20 bg-white text-primary font-bold shadow-xs'
+                                    : 'border-neutral-dark/20 bg-white text-primary/70 hover:border-primary'
+                                }`}
+                              >
+                                <span className="w-3 h-3 rounded-full border border-neutral-dark/25" style={{ backgroundColor: c.hex_code }} />
+                                <span>{c.name}</span>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </>
                 )}
                 <div>
                   <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/60 mb-1.5">Precio de Venta (S/) *</label>
@@ -661,7 +775,23 @@ export default function AdminProducts() {
                 
                 {/* Color selects */}
                 <div className="space-y-2">
-                  <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/65">Colores Mapeados</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[9px] uppercase tracking-wider font-semibold text-primary/65">Colores Mapeados</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickColorData({ name: '', hex_code: '#0A142F' });
+                        setQuickColorError('');
+                        setShowQuickColorModal(true);
+                      }}
+                      className="inline-flex items-center space-x-1 text-[10px] font-bold uppercase tracking-wider text-steel hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>Agregar Color</span>
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-3">
                     {dbColors
                       .filter(c => c.active || selectedColors.includes(c.id))
@@ -968,6 +1098,126 @@ export default function AdminProducts() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {/* ======================================================== */}
+      {/* MODAL AGREGAR COLOR RÁPIDO                              */}
+      {/* ======================================================== */}
+      {showQuickColorModal && (
+        <div 
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-primary/70 backdrop-blur-xs animate-fade-in"
+          onClick={() => setShowQuickColorModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl border border-neutral-dark/20 w-full max-w-sm overflow-hidden animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-primary text-white px-5 py-3.5 flex items-center justify-between">
+              <div>
+                <h4 className="font-serif text-sm font-bold">Agregar Nuevo Color</h4>
+                <p className="text-[9px] text-white/70">Se guardará en la base de datos y se seleccionará de inmediato.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuickColorModal(false)}
+                className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveQuickColor} className="p-5 space-y-3.5">
+              {quickColorError && (
+                <div className="bg-red-50 text-red-600 text-[11px] p-2.5 rounded-lg border border-red-200">
+                  {quickColorError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[9px] uppercase font-bold text-primary/70 tracking-wider mb-1">
+                  Nombre del Color *
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="Ej: Verde Olivo, Celeste Cielo"
+                  value={quickColorData.name}
+                  onChange={(e) => setQuickColorData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full text-xs border border-neutral-dark/30 rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] uppercase font-bold text-primary/70 tracking-wider mb-1">
+                  Código Hexadecimal (#HEX) *
+                </label>
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="color"
+                    value={
+                      /^#([A-Fa-f0-9]{6})$/.test(quickColorData.hex_code)
+                        ? quickColorData.hex_code
+                        : '#0A142F'
+                    }
+                    onChange={(e) => setQuickColorData(prev => ({ ...prev, hex_code: e.target.value.toUpperCase() }))}
+                    className="w-10 h-10 rounded-lg border border-neutral-dark/30 cursor-pointer p-0.5 bg-white shrink-0 shadow-2xs"
+                    title="Haz clic para seleccionar el color"
+                  />
+                  <input
+                    type="text"
+                    required
+                    placeholder="#0A142F"
+                    value={quickColorData.hex_code}
+                    onChange={(e) => {
+                      let val = e.target.value.toUpperCase();
+                      if (val && !val.startsWith('#')) val = '#' + val;
+                      setQuickColorData(prev => ({ ...prev, hex_code: val }));
+                    }}
+                    maxLength={9}
+                    className="w-full text-xs font-mono uppercase border border-neutral-dark/30 rounded-lg px-3 py-2 focus:outline-none focus:border-primary tracking-wider"
+                  />
+                </div>
+              </div>
+
+              {/* Previsualización */}
+              <div className="bg-neutral-light/70 border border-neutral-dark/20 rounded-xl p-3 flex items-center justify-between">
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-primary/60">
+                  Vista Previa
+                </span>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className="w-5 h-5 rounded-full border border-black/20 shadow-xs"
+                    style={{ backgroundColor: /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/.test(quickColorData.hex_code) ? quickColorData.hex_code : '#CCCCCC' }}
+                  />
+                  <span className="text-[11px] font-bold text-primary">
+                    {quickColorData.name || 'Color'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="pt-2 border-t border-neutral-dark/15 flex justify-end space-x-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickColorModal(false)}
+                  disabled={quickColorSaving}
+                  className="px-3 py-2 text-xs font-semibold text-primary/70 hover:text-primary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={quickColorSaving}
+                  className="bg-primary hover:bg-steel text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-lg shadow-sm disabled:opacity-50"
+                >
+                  {quickColorSaving ? 'Guardando...' : 'Guardar y Seleccionar'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

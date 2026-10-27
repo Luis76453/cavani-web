@@ -415,4 +415,196 @@ router.delete('/promotions/:id', async (req, res) => {
   }
 });
 
+// ==========================================
+// 8. COLOR MANAGEMENT (ADMIN)
+// ==========================================
+
+// Helper to validate and format HEX color
+const formatHexColor = (hex) => {
+  if (!hex || typeof hex !== 'string') return null;
+  let clean = hex.trim();
+  if (!clean.startsWith('#')) {
+    clean = '#' + clean;
+  }
+  if (!/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/.test(clean)) {
+    return null;
+  }
+  return clean.toUpperCase();
+};
+
+// GET /api/admin/colors - Get all colors with variant usage count
+router.get('/colors', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT c.id, c.name, c.hex_code, c.active,
+              COUNT(DISTINCT pv.id) as variants_count,
+              COUNT(DISTINCT pi.id) as images_count
+       FROM colors c
+       LEFT JOIN product_variants pv ON c.id = pv.color_id
+       LEFT JOIN product_images pi ON c.id = pi.color_id
+       GROUP BY c.id, c.name, c.hex_code, c.active
+       ORDER BY c.active DESC, c.name ASC`
+    );
+    res.json({ colors: result.rows });
+  } catch (err) {
+    console.error('Error fetching admin colors:', err);
+    res.status(500).json({ message: 'Error al obtener colores.' });
+  }
+});
+
+// POST /api/admin/colors - Create a new color
+router.post('/colors', async (req, res) => {
+  const { name, hex_code, active } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'El nombre del color es obligatorio.' });
+  }
+
+  const cleanHex = formatHexColor(hex_code);
+  if (!cleanHex) {
+    return res.status(400).json({ message: 'El código hexadecimal no es válido (ej: #0A142F).' });
+  }
+
+  const cleanName = name.trim();
+  const isActive = active !== undefined ? !!active : true;
+
+  try {
+    // Check duplicates by name or hex
+    const dupCheck = await db.query(
+      `SELECT id, name, hex_code FROM colors 
+       WHERE LOWER(name) = LOWER($1) OR UPPER(hex_code) = UPPER($2)`,
+      [cleanName, cleanHex]
+    );
+
+    if (dupCheck.rows.length > 0) {
+      const match = dupCheck.rows[0];
+      if (match.name.toLowerCase() === cleanName.toLowerCase()) {
+        return res.status(400).json({ message: `Ya existe un color con el nombre "${cleanName}".` });
+      }
+      return res.status(400).json({ message: `Ya existe un color con el código hexadecimal "${cleanHex}" (${match.name}).` });
+    }
+
+    const result = await db.query(
+      `INSERT INTO colors (name, hex_code, active)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [cleanName, cleanHex, isActive]
+    );
+
+    res.status(201).json({ color: result.rows[0] });
+  } catch (err) {
+    console.error('Error creating color:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ message: 'Ya existe un color con ese nombre o código hexadecimal.' });
+    }
+    res.status(500).json({ message: 'Error al crear el color.' });
+  }
+});
+
+// PUT /api/admin/colors/:id - Update a color
+router.put('/colors/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, hex_code, active } = req.body;
+
+  try {
+    const check = await db.query('SELECT * FROM colors WHERE id = $1', [id]);
+    if (check.rows.length === 0) {
+      return res.status(404).json({ message: 'Color no encontrado.' });
+    }
+    const current = check.rows[0];
+
+    const cleanName = name ? name.trim() : current.name;
+    const cleanHex = hex_code ? formatHexColor(hex_code) : current.hex_code;
+    if (!cleanHex) {
+      return res.status(400).json({ message: 'El código hexadecimal no es válido.' });
+    }
+    const isActive = active !== undefined ? !!active : current.active;
+
+    // Check duplicates against other colors
+    const dupCheck = await db.query(
+      `SELECT id, name, hex_code FROM colors 
+       WHERE (LOWER(name) = LOWER($1) OR UPPER(hex_code) = UPPER($2)) AND id != $3`,
+      [cleanName, cleanHex, id]
+    );
+
+    if (dupCheck.rows.length > 0) {
+      const match = dupCheck.rows[0];
+      if (match.name.toLowerCase() === cleanName.toLowerCase()) {
+        return res.status(400).json({ message: `Ya existe otro color con el nombre "${cleanName}".` });
+      }
+      return res.status(400).json({ message: `Ya existe otro color con el código hexadecimal "${cleanHex}" (${match.name}).` });
+    }
+
+    const result = await db.query(
+      `UPDATE colors 
+       SET name = $1, hex_code = $2, active = $3
+       WHERE id = $4
+       RETURNING *`,
+      [cleanName, cleanHex, isActive, id]
+    );
+
+    res.json({ color: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating color:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ message: 'Ya existe otro color con ese nombre o código hexadecimal.' });
+    }
+    res.status(500).json({ message: 'Error al actualizar el color.' });
+  }
+});
+
+// PUT /api/admin/colors/:id/status - Toggle active/inactive
+router.put('/colors/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { active } = req.body;
+
+  try {
+    const result = await db.query(
+      `UPDATE colors SET active = $1 WHERE id = $2 RETURNING *`,
+      [!!active, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Color no encontrado.' });
+    }
+    res.json({ color: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating color status:', err);
+    res.status(500).json({ message: 'Error al cambiar estado del color.' });
+  }
+});
+
+// DELETE /api/admin/colors/:id - Delete a color if not in use
+router.delete('/colors/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Check if color is in use by variants or images
+    const usageRes = await db.query(
+      `SELECT 
+        (SELECT COUNT(*) FROM product_variants WHERE color_id = $1) as variants_count,
+        (SELECT COUNT(*) FROM product_images WHERE color_id = $1) as images_count`,
+      [id]
+    );
+
+    const variantsCount = parseInt(usageRes.rows[0]?.variants_count || 0);
+    const imagesCount = parseInt(usageRes.rows[0]?.images_count || 0);
+
+    if (variantsCount > 0 || imagesCount > 0) {
+      return res.status(400).json({
+        message: `No se puede eliminar este color porque está asignado a ${variantsCount} variante(s) y ${imagesCount} imagen(es) de productos. Te recomendamos desactivarlo en su lugar.`
+      });
+    }
+
+    const result = await db.query('DELETE FROM colors WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Color no encontrado.' });
+    }
+
+    res.json({ message: 'Color eliminado correctamente.', id });
+  } catch (err) {
+    console.error('Error deleting color:', err);
+    res.status(500).json({ message: 'Error al eliminar el color.' });
+  }
+});
+
 module.exports = router;

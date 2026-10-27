@@ -63,6 +63,17 @@ async function startServer() {
   try {
     await db.initDb();
     
+    // Ensure colors table has active column
+    try {
+      if (db.getDbType() === 'postgres') {
+        await db.query('ALTER TABLE colors ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true');
+      } else {
+        await db.query('ALTER TABLE colors ADD COLUMN active BOOLEAN DEFAULT true');
+      }
+    } catch (colErr) {
+      // Column likely already exists
+    }
+    
     // Auto-create SQLite directory or DB initialize check
     if (db.getDbType() === 'sqlite') {
       const sqliteInstance = db.getSqliteInstance();
