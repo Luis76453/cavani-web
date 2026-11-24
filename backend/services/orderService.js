@@ -67,7 +67,7 @@ async function calculateCartTotal(userId, promo_code, shipping_method = 'deliver
   if (shipping_method === 'pickup') {
     shipping = 0;
   } else if (shipping_method === 'delivery_lima') {
-    shipping = subtotal > 250 ? 0 : 10.00;
+    shipping = subtotal > 250 ? 0 : 13.00;
   } else if (shipping_method === 'provincia') {
     shipping = 0;
   } else {

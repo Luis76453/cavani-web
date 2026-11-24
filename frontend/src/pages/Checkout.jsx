@@ -78,7 +78,7 @@ export default function Checkout() {
       return 0;
     }
     if (shippingMethod === 'delivery_lima') {
-      return subtotal > 250 ? 0 : 10.00;
+      return subtotal > 250 ? 0 : 13.00;
     }
     if (shippingMethod === 'provincia') {
       return 0;
@@ -592,7 +592,7 @@ export default function Checkout() {
               >
                 <span>🛵 Delivery Lima & Callao</span>
                 <span className="text-[10px] opacity-80">
-                  {subtotal > 250 ? '¡Envío Gratis!' : '+S/10.00'}
+                  {subtotal > 250 ? '¡Envío Gratis!' : '+S/13.00'}
                 </span>
               </button>
               
